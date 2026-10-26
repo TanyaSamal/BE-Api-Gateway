@@ -1,8 +1,7 @@
-// apps/api-gateway/src/app.service.ts
 import { Injectable, Inject } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
-import { IAnalyticsDashboardResponse } from 'ai/shared';
+import { IAnalyticsDashboardResponse, TrackEventDto } from 'ai/shared';
 
 @Injectable()
 export class AppService {
@@ -20,5 +19,12 @@ export class AppService {
     return await firstValueFrom(
       this.analyticsClient.send<IAnalyticsDashboardResponse>(pattern, payload),
     );
+  }
+
+  sendEventToQueue(eventDto: TrackEventDto) {
+    const pattern = 'track_action'; // Должен совпадать с @EventPattern в микросервисе
+
+    // Метод emit отправляет данные в RabbitMQ и НЕ ждет ответа от микросервиса.
+    this.analyticsClient.emit(pattern, eventDto);
   }
 }

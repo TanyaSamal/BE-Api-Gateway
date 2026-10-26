@@ -1,8 +1,9 @@
 import { Controller } from '@nestjs/common';
-import { MessagePattern, Payload } from '@nestjs/microservices';
+import { EventPattern, MessagePattern, Payload } from '@nestjs/microservices';
 import {
   GetAnalyticsDashboardDto,
   IAnalyticsDashboardResponse,
+  TrackEventDto,
 } from 'ai/shared';
 import { AnalyticsServiceService } from './analytics-service.service';
 
@@ -20,5 +21,10 @@ export class AnalyticsServiceController {
       data.userId,
       data.period,
     );
+  }
+
+  @EventPattern('track_action')
+  handleTrackAction(@Payload() data: TrackEventDto) {
+    this.analyticsServiceService.logEvent(data);
   }
 }

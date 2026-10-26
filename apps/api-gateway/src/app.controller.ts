@@ -1,6 +1,7 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { AppService } from './app.service';
 import { GetAnalyticsDashboardDto } from 'ai/shared';
+import { TrackEventDto } from 'ai/shared/dto/track-event.dto';
 
 @Controller('analytics')
 export class AppController {
@@ -16,6 +17,16 @@ export class AppController {
     return {
       success: true,
       data: result,
+    };
+  }
+
+  @Post('track')
+  trackUserAction(@Body() body: TrackEventDto) {
+    this.appService.sendEventToQueue(body);
+
+    return {
+      success: true,
+      message: 'Событие успешно принято и отправлено на обработку в бэкграунд',
     };
   }
 }

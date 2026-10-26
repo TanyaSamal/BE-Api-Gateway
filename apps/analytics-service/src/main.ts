@@ -1,20 +1,24 @@
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { AnalyticsServiceModule } from './analytics-service.module';
+import { ANALYTICS_QUEUE } from 'ai/shared';
 
 async function bootstrap() {
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
     AnalyticsServiceModule,
     {
-      transport: Transport.TCP,
+      transport: Transport.RMQ,
       options: {
-        host: '127.0.0.1',
-        port: 4001,
+        urls: ['amqp://localhost:5672'], // URL нашего Docker-контейнера RabbitMQ
+        queue: ANALYTICS_QUEUE,
+        queueOptions: {
+          durable: true // Очередь не пропадет при перезапуске RabbitMQ
+        },
       },
     },
   );
 
   await app.listen();
-  console.log('Analytics Microservice успешно запущен по TCP на порту 4001');
+  console.log('Analytics Microservice запущен и слушает очередь RabbitMQ');
 }
 bootstrap();

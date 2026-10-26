@@ -2,16 +2,20 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { ANALYTICS_QUEUE } from 'ai/shared';
 
 @Module({
   imports: [
     ClientsModule.register([
       {
         name: 'ANALYTICS_SERVICE',
-        transport: Transport.TCP,
+        transport: Transport.RMQ,
         options: {
-          host: '127.0.0.1',
-          port: 4001, 
+          urls: ['amqp://localhost:5672'],
+          queue: ANALYTICS_QUEUE,
+          queueOptions: {
+            durable: true,
+          },
         },
       },
     ]),

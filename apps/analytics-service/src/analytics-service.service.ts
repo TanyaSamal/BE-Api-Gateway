@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { IAnalyticsDashboardResponse } from 'ai/shared';
+import { IAnalyticsDashboardResponse, TrackEventDto } from 'ai/shared';
 
 @Injectable()
 export class AnalyticsServiceService {
@@ -22,5 +22,14 @@ export class AnalyticsServiceService {
       ],
       mockedForUser: userId,
     };
+  }
+
+  logEvent(event: TrackEventDto) {
+    console.log(
+      `[БЕКГРАУНД ОБРАБОТКА] Получено событие от пользователя #${event.userId}`,
+    );
+    console.log(`Тип события: ${event.eventName}`);
+    console.log(`Доп. свойства:`, event.properties || 'нет');
+    console.log(`--- Событие успешно обработано в фоне ---`);
   }
 }
