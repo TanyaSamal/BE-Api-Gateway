@@ -2,10 +2,11 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ClientsModule, Transport } from '@nestjs/microservices';
-import { ANALYTICS_QUEUE } from 'ai/shared';
+import { ANALYTICS_QUEUE, RedisModule } from 'ai/shared';
 
 @Module({
   imports: [
+    RedisModule,
     ClientsModule.register([
       {
         name: 'ANALYTICS_SERVICE',

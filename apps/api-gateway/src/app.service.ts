@@ -3,6 +3,8 @@ import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import { IAnalyticsDashboardResponse, TrackEventDto } from 'ai/shared';
 
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 @Injectable()
 export class AppService {
   constructor(
@@ -13,6 +15,10 @@ export class AppService {
     userId: number,
     period?: string,
   ): Promise<IAnalyticsDashboardResponse> {
+    console.log('Начало выполнения "тяжелого" запроса к микросервису...');
+
+    await delay(3000);
+
     const pattern = 'get_analytics_dashboard';
     const payload = { userId, period };
 

@@ -1,12 +1,20 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  UseInterceptors,
+} from '@nestjs/common';
 import { AppService } from './app.service';
-import { GetAnalyticsDashboardDto } from 'ai/shared';
+import { GetAnalyticsDashboardDto, RedisCacheInterceptor } from 'ai/shared';
 import { TrackEventDto } from 'ai/shared/dto/track-event.dto';
 
 @Controller('analytics')
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
+  @UseInterceptors(RedisCacheInterceptor)
   @Get('dashboard')
   async getAnalyticsDashboard(@Query() query: GetAnalyticsDashboardDto) {
     const result = await this.appService.getDashboardData(
