@@ -3,10 +3,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { ANALYTICS_QUEUE, RedisModule } from 'ai/shared';
+import { TasksModule } from './tasks/tasks.module';
 
 @Module({
   imports: [
     RedisModule,
+    TasksModule,
     ClientsModule.register([
       {
         name: 'ANALYTICS_SERVICE',
