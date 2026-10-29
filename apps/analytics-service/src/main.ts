@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { AnalyticsServiceModule } from './analytics-service.module';
-import { ANALYTICS_QUEUE } from 'ai/shared';
+import { ANALYTICS_QUEUE, AppLogger } from 'ai/shared';
 
 async function bootstrap() {
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
@@ -17,6 +17,9 @@ async function bootstrap() {
       },
     },
   );
+
+  const logger = app.get(AppLogger);
+  app.useLogger(logger);
 
   await app.listen();
   console.log('Analytics Microservice запущен и слушает очередь RabbitMQ');

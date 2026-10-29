@@ -1,9 +1,10 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ClientsModule, Transport } from '@nestjs/microservices';
-import { ANALYTICS_QUEUE, RedisModule } from 'ai/shared';
+import { ANALYTICS_QUEUE, AppLogger, CorrelationContextService, RedisModule } from 'ai/shared';
 import { TasksModule } from './tasks/tasks.module';
+import { CorrelationMiddleware } from './common/middleware/correlation.middleware';
 
 @Module({
   imports: [
@@ -24,6 +25,11 @@ import { TasksModule } from './tasks/tasks.module';
     ]),
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, AppLogger, CorrelationContextService],
 })
-export class AppModule {}
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Применяем middleware ко всем HTTP маршрутам
+    consumer.apply(CorrelationMiddleware).forRoutes('*');
+  }
+}

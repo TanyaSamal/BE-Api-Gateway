@@ -1,7 +1,12 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
+import { ClientProxy, RmqRecordBuilder } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
-import { IAnalyticsDashboardResponse, TrackEventDto } from 'ai/shared';
+import {
+  AppLogger,
+  CorrelationContextService,
+  IAnalyticsDashboardResponse,
+  TrackEventDto,
+} from 'ai/shared';
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -9,6 +14,8 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export class AppService {
   constructor(
     @Inject('ANALYTICS_SERVICE') private readonly analyticsClient: ClientProxy,
+    private readonly contextService: CorrelationContextService,
+    private readonly logger: AppLogger,
   ) {}
 
   async getDashboardData(
@@ -28,9 +35,25 @@ export class AppService {
   }
 
   sendEventToQueue(eventDto: TrackEventDto) {
+    const correlationId = this.contextService.getCorrelationId() || 'no-id';
+
+    this.logger.log(
+      `Генерируем событие для отправки в RabbitMQ...`,
+      'GatewayService',
+    );
+
+    // Правильно упаковываем DTO отдельно, а системный заголовок — отдельно
+    const record = new RmqRecordBuilder(eventDto)
+      .setOptions({
+        headers: {
+          'x-correlation-id': correlationId,
+        },
+      })
+      .build();
+
     const pattern = 'track_action'; // Должен совпадать с @EventPattern в микросервисе
 
     // Метод emit отправляет данные в RabbitMQ и НЕ ждет ответа от микросервиса.
-    this.analyticsClient.emit(pattern, eventDto);
+    this.analyticsClient.emit(pattern, record);
   }
 }
