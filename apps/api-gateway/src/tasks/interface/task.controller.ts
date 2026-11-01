@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { Task } from '../domain/models/task.model';
 import { CreateTaskCommand } from '../application/commands/create-task.command';
-import { GetTasksQuery } from '../application/queries/get-tasks.query';
+import { GetTaskQuery } from '../application/queries/get-task.query';
+import { CompleteTaskCommand } from '../application/commands/complete-task.command';
 
 @Controller('tasks')
 export class TaskController {
@@ -12,6 +13,7 @@ export class TaskController {
     private readonly queryBus: QueryBus,
   ) {}
 
+  // 1. Создание задачи (добавляет TaskCreatedEvent)
   @Post()
   async createTask(
     @Body('title') title: string,
@@ -24,11 +26,21 @@ export class TaskController {
     return { id: taskId };
   }
 
-  @Get()
-  async getTasks(): Promise<Task[]> {
+  // 2. Завершение задачи (добавляет TaskCompletedEvent)
+  @Patch(':id/complete')
+  async completeTask(@Param('id') id: string): Promise<{ success: boolean }> {
+    await this.commandBus.execute<CompleteTaskCommand, void>(
+      new CompleteTaskCommand(id),
+    );
+    return { success: true };
+  }
+
+  // 3. Получение задачи по ID (собирает текущее состояние через replay)
+  @Get(':id')
+  async getTaskById(@Param('id') id: string): Promise<Task> {
     // Отправляем запрос в QueryBus. NestJS сам вызовет GetTasksHandler
-    return await this.queryBus.execute<GetTasksQuery, Task[]>(
-      new GetTasksQuery(),
+    return await this.queryBus.execute<GetTaskQuery, Task>(
+      new GetTaskQuery(id),
     );
   }
 }

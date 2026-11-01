@@ -42,7 +42,9 @@ export class RedisCacheInterceptor implements NestInterceptor {
         this.redisClient
           .setex(cacheKey, 60, JSON.stringify(response))
           .then(() => {
-            console.log(`[💾 CACHE SAVED] Ответ для ${cacheKey} сохранен в Redis на 60 сек.`);
+            console.log(
+              `[💾 CACHE SAVED] Ответ для ${cacheKey} сохранен в Redis на 60 сек.`,
+            );
           })
           .catch((err) => {
             console.error(`[❌ REDIS ERROR] Не удалось сохранить кэш:`, err);

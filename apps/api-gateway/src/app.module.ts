@@ -2,7 +2,12 @@ import { MiddlewareConsumer, Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ClientsModule, Transport } from '@nestjs/microservices';
-import { ANALYTICS_QUEUE, AppLogger, CorrelationContextService, RedisModule } from 'ai/shared';
+import {
+  ANALYTICS_QUEUE,
+  AppLogger,
+  CorrelationContextService,
+  RedisModule,
+} from 'ai/shared';
 import { TasksModule } from './tasks/tasks.module';
 import { CorrelationMiddleware } from './common/middleware/correlation.middleware';
 

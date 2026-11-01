@@ -12,7 +12,7 @@ async function bootstrap() {
         urls: ['amqp://localhost:5672'], // URL нашего Docker-контейнера RabbitMQ
         queue: ANALYTICS_QUEUE,
         queueOptions: {
-          durable: true // Очередь не пропадет при перезапуске RabbitMQ
+          durable: true, // Очередь не пропадет при перезапуске RabbitMQ
         },
       },
     },

@@ -17,6 +17,7 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
+    "types": ["jest"],
     "paths": {
       "ai/shared": [
         "libs/shared/src"

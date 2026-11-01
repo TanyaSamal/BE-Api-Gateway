@@ -2,25 +2,23 @@ import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { TaskController } from './interface/task.controller';
 import { CreateTaskHandler } from './application/commands/create-task.handler';
-import { GetTasksHandler } from './application/queries/get-tasks.handler';
-import { InMemoryTaskRepository } from './infrastructure/persistence/in-memory-task.repository';
+import { CompleteTaskHandler } from './application/commands/complete-task.handler'; // Новый
+import { InMemoryEventStore } from './infrastructure/persistence/in-memory-event-store'; // Новый
+import { GetTaskHandler } from './application/queries/get-task.handler';
 
-// Собираем хэндлеры в массивы для удобства регистрации
-const CommandHandlers = [CreateTaskHandler];
-const QueryHandlers = [GetTasksHandler];
+const CommandHandlers = [CreateTaskHandler, CompleteTaskHandler];
+const QueryHandlers = [GetTaskHandler];
 
 @Module({
-  imports: [
-    CqrsModule, // Обязательно импортируем модуль CQRS фреймворка
-  ],
+  imports: [CqrsModule],
   controllers: [TaskController],
   providers: [
     ...CommandHandlers,
     ...QueryHandlers,
-    // Регистрируем репозиторий через текстовый токен для инверсии зависимостей (DIP)
+    // Регистрируем Event Store через текстовый токен инверсии зависимостей
     {
-      provide: 'TASK_REPOSITORY',
-      useClass: InMemoryTaskRepository,
+      provide: 'EVENT_STORE',
+      useClass: InMemoryEventStore,
     },
   ],
 })

@@ -1,28 +1,27 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { CreateTaskCommand } from './create-task.command';
+import { v4 as uuidv4 } from 'uuid';
+import { TaskCreatedEvent } from '../../domain/models/task-events';
 import { Inject } from '@nestjs/common';
-import { ITaskRepository } from '../../domain/repositories/task.repository.interface';
-import { Task } from '../../domain/models/task.model';
+import { ITaskEventStore } from '../../domain/repositories/task-event-store.interface';
 
 @CommandHandler(CreateTaskCommand)
 export class CreateTaskHandler implements ICommandHandler<CreateTaskCommand> {
   constructor(
-    // Внедряем интерфейс репозитория (токен строки для DI)
-    @Inject('TASK_REPOSITORY') private readonly taskRepository: ITaskRepository,
+    @Inject('EVENT_STORE') private readonly eventStore: ITaskEventStore,
   ) {}
 
   async execute(command: CreateTaskCommand): Promise<string> {
     const { title, description } = command;
 
-    // Генерируем уникальный ID для доменной модели
-    const taskId = Math.random().toString(36).substring(2, 11);
+    const taskId = uuidv4();
 
-    // Создаем чистую доменную сущность (DDD Aggregate)
-    const task = new Task(taskId, title, description, 'PENDING', new Date());
+    // Генерируем доменное событие создания
+    const event = new TaskCreatedEvent(taskId, title, description);
 
-    // Сохраняем в репозиторий
-    await this.taskRepository.save(task);
-
-    return taskId;
+    // Асинхронно записываем событие в конец лога и возвращаем ID
+    return this.eventStore.saveEvent(event).then(() => {
+      return taskId;
+    });
   }
 }

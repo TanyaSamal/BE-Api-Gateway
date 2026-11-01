@@ -21,8 +21,8 @@ describe('Analytics Service Down - Queue Persistence (Integration)', () => {
   let moduleRef: TestingModule;
 
   // RabbitMQ переменные
-  let amqpConnection: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-  let channel: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  let amqpConnection: any;
+  let channel: any;
 
   const RABBITMQ_URL = 'amqp://localhost:5672';
   const ANALYTICS_QUEUE = 'analytics_queue';
@@ -73,9 +73,11 @@ describe('Analytics Service Down - Queue Persistence (Integration)', () => {
     // Подключаемся к RabbitMQ для проверки состояния очереди с timeout
     try {
       const connectionPromise = amqplib.connect(RABBITMQ_URL);
-      const timeoutPromise = new Promise(
-        (_, reject) =>
-          setTimeout(() => reject(new Error('RabbitMQ connection timeout')), 5000),
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error('RabbitMQ connection timeout')),
+          5000,
+        ),
       );
 
       amqpConnection = (await Promise.race([
@@ -143,24 +145,28 @@ describe('Analytics Service Down - Queue Persistence (Integration)', () => {
 
       // Проверка 1: Ответ содержит x-correlation-id в заголовках
       expect(response.headers['x-correlation-id']).toBeDefined();
-      const correlationId = response.headers['x-correlation-id'] as string;
+      const correlationId = response.headers['x-correlation-id'];
       expect(correlationId.length).toBeGreaterThan(0);
 
       // Проверка 2: Ответ содержит успешный статус
       expect(response.body).toEqual({
         success: true,
-        message: 'Событие успешно принято и отправлено на обработку в бэкграунд',
+        message:
+          'Событие успешно принято и отправлено на обработку в бэкграунд',
       });
 
       // Дополнительная задержка для обработки сообщения
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Проверка 3: Логи содержат x-correlation-id
-      const logsWithId = capturedLogs.filter((log) =>
-        log.includes(`[ID: ${correlationId}]`) || log.includes(correlationId),
+      const logsWithId = capturedLogs.filter(
+        (log) =>
+          log.includes(`[ID: ${correlationId}]`) || log.includes(correlationId),
       );
 
-      console.log(`\n✓ Найдено ${logsWithId.length} логов с correlation-id: ${correlationId}`);
+      console.log(
+        `\n✓ Найдено ${logsWithId.length} логов с correlation-id: ${correlationId}`,
+      );
       logsWithId.forEach((log) => console.log(`  - ${log}`));
 
       // Если есть логи с GatewayService, то correlation-id должен быть зафиксирован
@@ -173,9 +179,6 @@ describe('Analytics Service Down - Queue Persistence (Integration)', () => {
     });
   });
 
-
-
-
   describe('Сценарий 2: Проверка сохранения сообщения в очереди RabbitMQ', () => {
     it('должно сохранить сообщение в очереди при недоступности микросервиса', async () => {
       if (!channel) {
@@ -185,7 +188,9 @@ describe('Analytics Service Down - Queue Persistence (Integration)', () => {
 
       // Подготовка: очищаем очередь
       const purgeResult = await channel.purgeQueue(ANALYTICS_QUEUE);
-      console.log(`✓ Очередь очищена. Было ${purgeResult.messageCount} сообщений`);
+      console.log(
+        `✓ Очередь очищена. Было ${purgeResult.messageCount} сообщений`,
+      );
 
       // Отправляем несколько событий
       const events: TrackEventDto[] = [
@@ -207,7 +212,7 @@ describe('Analytics Service Down - Queue Persistence (Integration)', () => {
           .send(event)
           .expect(201);
 
-        const corrId = response.headers['x-correlation-id'] as string;
+        const corrId = response.headers['x-correlation-id'];
         console.log(`✓ Отправлено событие. Correlation-ID: ${corrId}`);
       }
 
@@ -218,7 +223,7 @@ describe('Analytics Service Down - Queue Persistence (Integration)', () => {
       const queueStatus = await channel.checkQueue(ANALYTICS_QUEUE);
       console.log(
         `✓ Очередь содержит ${queueStatus.messageCount} сообщений ` +
-        `(${queueStatus.consumerCount} потребителей)`,
+          `(${queueStatus.consumerCount} потребителей)`,
       );
 
       expect(queueStatus.messageCount).toBeGreaterThanOrEqual(2);
@@ -227,8 +232,14 @@ describe('Analytics Service Down - Queue Persistence (Integration)', () => {
       const message = await channel.get(ANALYTICS_QUEUE, { noAck: false });
 
       if (message) {
-        const content = JSON.parse(message.content.toString()) as Record<string, unknown>;
-        const headers = (message.properties.headers || {}) as Record<string, unknown>;
+        const content = JSON.parse(message.content.toString()) as Record<
+          string,
+          unknown
+        >;
+        const headers = (message.properties.headers || {}) as Record<
+          string,
+          unknown
+        >;
 
         console.log(`✓ Сообщение из очереди:`, content);
         console.log(`✓ Заголовки сообщения:`, headers);
@@ -263,13 +274,15 @@ describe('Analytics Service Down - Queue Persistence (Integration)', () => {
         .send(trackEventDto)
         .expect(201);
 
-      const correlationId = response.headers['x-correlation-id'] as string;
+      const correlationId = response.headers['x-correlation-id'];
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       const relevantLogs = capturedLogs.filter(
         (log) =>
-          log.includes('[Log]') || log.includes('[Error]') ||
-          log.includes('[Warn]') || log.includes('GatewayService'),
+          log.includes('[Log]') ||
+          log.includes('[Error]') ||
+          log.includes('[Warn]') ||
+          log.includes('GatewayService'),
       );
 
       console.log(`\n✓ Найдено ${relevantLogs.length} релевантных логов`);
@@ -289,12 +302,12 @@ describe('Analytics Service Down - Queue Persistence (Integration)', () => {
     });
   });
 
-
-
   describe('Сценарий 4: Повторная попытка отправки при восстановлении', () => {
     it('должно обработать накопившиеся события после восстановления микросервиса', async () => {
       if (!channel) {
-        console.warn('⚠️ RabbitMQ не доступен. Пропускаем тест восстановления.');
+        console.warn(
+          '⚠️ RabbitMQ не доступен. Пропускаем тест восстановления.',
+        );
         return;
       }
 
@@ -314,7 +327,7 @@ describe('Analytics Service Down - Queue Persistence (Integration)', () => {
         .send(trackEventDto)
         .expect(201);
 
-      const correlationId = response.headers['x-correlation-id'] as string;
+      const correlationId = response.headers['x-correlation-id'];
       console.log(`✓ Отправлено событие с correlation-id: ${correlationId}`);
 
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -328,8 +341,14 @@ describe('Analytics Service Down - Queue Persistence (Integration)', () => {
       const message = await channel.get(ANALYTICS_QUEUE, { noAck: true });
 
       if (message) {
-        const content = JSON.parse(message.content.toString()) as Record<string, unknown>;
-        const headers = (message.properties.headers || {}) as Record<string, unknown>;
+        const content = JSON.parse(message.content.toString()) as Record<
+          string,
+          unknown
+        >;
+        const headers = (message.properties.headers || {}) as Record<
+          string,
+          unknown
+        >;
 
         console.log(`✓ Сообщение для обработки:`, {
           content,
@@ -353,7 +372,7 @@ describe('Analytics Service Down - Queue Persistence (Integration)', () => {
         })
         .expect(201);
 
-      const correlationId = response.headers['x-correlation-id'] as string;
+      const correlationId = response.headers['x-correlation-id'];
 
       // UUID v4 формат: 8-4-4-4-12
       const uuidRegex =

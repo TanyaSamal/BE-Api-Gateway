@@ -46,7 +46,7 @@
     "@types/amqplib": "^0.10.8",
     "@types/express": "^5.0.6",
     "@types/ioredis": "^4.28.10",
-    "@types/jest": "^29.5.14",
+    "@types/jest": "^30.0.0",
     "@types/node": "^22.10.7",
     "@types/supertest": "^6.0.2",
     "@types/uuid": "^10.0.0",
