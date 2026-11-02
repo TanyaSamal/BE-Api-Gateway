@@ -8,14 +8,14 @@ export interface IEvent {
 export class TaskCreatedEvent implements IEvent {
   readonly eventName = 'TaskCreatedEvent';
   readonly createdAt = new Date();
-  readonly payload: { title: string; description: string };
+  readonly payload: { title: string; description: string; userId: number };
 
   constructor(
     public readonly taskId: string,
     title: string,
     description: string,
   ) {
-    this.payload = { title, description };
+    this.payload = { title, description, userId: 99 };
   }
 }
 

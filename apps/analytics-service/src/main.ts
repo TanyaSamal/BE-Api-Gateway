@@ -14,6 +14,10 @@ async function bootstrap() {
         queueOptions: {
           durable: true, // Очередь не пропадет при перезапуске RabbitMQ
         },
+        socketOptions: {
+          heartbeatIntervalInSeconds: 5,
+          reconnectTimeInSeconds: 5,
+        },
       },
     },
   );
