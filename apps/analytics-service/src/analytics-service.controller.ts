@@ -9,8 +9,10 @@ import {
 import {
   AppLogger,
   CorrelationContextService,
+  GET_ANALYTICS_DASHBOARD,
   GetAnalyticsDashboardDto,
   IAnalyticsDashboardResponse,
+  TRACK_ACTION,
   TrackEventDto,
 } from 'ai/shared';
 import { AnalyticsServiceService } from './analytics-service.service';
@@ -24,7 +26,7 @@ export class AnalyticsServiceController {
     private readonly logger: AppLogger,
   ) {}
 
-  @MessagePattern('get_analytics_dashboard')
+  @MessagePattern(GET_ANALYTICS_DASHBOARD)
   getDashboardData(
     @Payload() data: GetAnalyticsDashboardDto,
   ): IAnalyticsDashboardResponse {
@@ -34,7 +36,7 @@ export class AnalyticsServiceController {
     );
   }
 
-  @EventPattern('track_action')
+  @EventPattern(TRACK_ACTION)
   handleTrackAction(
     @Payload() data: TrackEventDto,
     @Ctx() context: RmqContext,

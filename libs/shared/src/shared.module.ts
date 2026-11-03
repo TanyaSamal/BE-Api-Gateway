@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SharedService } from './shared.service';
 import { ClientsModule, Transport } from '@nestjs/microservices';
-import { ANALYTICS_QUEUE } from './consts/analytics_queue';
+import { ANALYTICS_QUEUE } from './consts/analytics';
 
 @Module({
   imports: [

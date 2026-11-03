@@ -10,11 +10,24 @@ import {
 import { TasksModule } from './tasks/tasks.module';
 import { CorrelationMiddleware } from './common/middleware/correlation.middleware';
 import { ScheduleModule } from '@nestjs/schedule';
+import { DownloadAnalyticsCsvHandler } from './analytics/application/queries/download-analytics-csv.handler';
+import { CqrsModule } from '@nestjs/cqrs';
 
 @Module({
-  imports: [RedisModule, TasksModule, SharedModule, ScheduleModule.forRoot()],
+  imports: [
+    RedisModule,
+    TasksModule,
+    SharedModule,
+    CqrsModule,
+    ScheduleModule.forRoot(),
+  ],
   controllers: [AppController],
-  providers: [AppService, AppLogger, CorrelationContextService],
+  providers: [
+    AppService,
+    AppLogger,
+    CorrelationContextService,
+    DownloadAnalyticsCsvHandler,
+  ],
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {
