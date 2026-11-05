@@ -15,12 +15,15 @@ import { DownloadAnalyticsCsvQuery } from './analytics/application/queries/downl
 import { NdjsonParseTransform } from './analytics/infrastructure/streams/ndjson-parse.transform';
 import { AnalyticsCsvTransform } from './analytics/infrastructure/streams/analytics-csv.transform';
 import { QueryBus } from '@nestjs/cqrs';
+import { v4 as uuidv4 } from 'uuid';
+import { WorkerPoolService } from './worker-pool/worker-pool.service';
 
 @Controller('analytics')
 export class AppController {
   constructor(
     private readonly appService: AppService,
     private readonly queryBus: QueryBus,
+    private readonly workerPool: WorkerPoolService,
   ) {}
 
   @UseInterceptors(RedisCacheInterceptor)
@@ -47,7 +50,6 @@ export class AppController {
     };
   }
 
-  // НАШ НОВЫЙ ЭНДПОИНТ (Кэширование тут НЕ используем!)
   @Get('download/csv')
   async downloadCsv(@Res() res: Response): Promise<void> {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -76,5 +78,28 @@ export class AppController {
         });
       }
     }
+  }
+
+  // Тяжелый эндпоинт (выполняется 3 секунды в фоне)
+  @Get('heavy-report')
+  async getHeavyReport(@Query('client') client: string) {
+    const reportId = uuidv4();
+
+    console.log(`[Main Thread] Старт тяжелой задачи для ${client}...`);
+
+    const result = await this.workerPool.runHeavyTask({
+      reportId,
+      clientName: client || 'Анонимный клиент',
+    });
+
+    console.log(`[Main Thread] Тяжелая задача ${reportId} успешно завершена!`);
+
+    return result;
+  }
+
+  // Легкий эндпоинт для проверки отзывчивости (мгновенный)
+  @Get('ping')
+  getPing() {
+    return { status: 'ok', timestamp: new Date().toISOString() };
   }
 }

@@ -12,6 +12,7 @@ import { CorrelationMiddleware } from './common/middleware/correlation.middlewar
 import { ScheduleModule } from '@nestjs/schedule';
 import { DownloadAnalyticsCsvHandler } from './analytics/application/queries/download-analytics-csv.handler';
 import { CqrsModule } from '@nestjs/cqrs';
+import { WorkerPoolModule } from './worker-pool/worker-pool.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { CqrsModule } from '@nestjs/cqrs';
     TasksModule,
     SharedModule,
     CqrsModule,
+    WorkerPoolModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
