@@ -13,6 +13,8 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { DownloadAnalyticsCsvHandler } from './analytics/application/queries/download-analytics-csv.handler';
 import { CqrsModule } from '@nestjs/cqrs';
 import { WorkerPoolModule } from './worker-pool/worker-pool.module';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { PerformanceInterceptor } from './common/interceptors/performance.interceptor';
 
 @Module({
   imports: [
@@ -29,6 +31,10 @@ import { WorkerPoolModule } from './worker-pool/worker-pool.module';
     AppLogger,
     CorrelationContextService,
     DownloadAnalyticsCsvHandler,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: PerformanceInterceptor,
+    },
   ],
 })
 export class AppModule {
