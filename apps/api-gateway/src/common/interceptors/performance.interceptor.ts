@@ -7,13 +7,18 @@ import {
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { Response } from 'express';
-import { AppLogger, CorrelationContextService } from 'ai/shared';
+import {
+  AppLogger,
+  CorrelationContextService,
+  MetricsService,
+} from 'ai/shared';
 
 @Injectable()
 export class PerformanceInterceptor implements NestInterceptor {
   constructor(
     private readonly logger: AppLogger,
     private readonly contextService: CorrelationContextService,
+    private readonly metricsService: MetricsService,
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
@@ -32,29 +37,44 @@ export class PerformanceInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap(() => {
         const endTime = performance.now();
-        const duration = parseFloat((endTime - startTime).toFixed(2));
+        const durationMs = parseFloat((endTime - startTime).toFixed(2));
+        const durationSec = durationMs / 1000; // Prometheus принимает секунды
+
+        const labels = {
+          method: request.method,
+          route: request.route?.path || request.url,
+        };
+
+        // 1. Фиксируем время выполнения в гистограмме Prometheus
+        this.metricsService.httpRequestDurationHistogram.observe(labels, durationSec);
+
+        // 2. Увеличиваем счетчик запросов, записывая итоговый статус-код
+        this.metricsService.httpRequestsCounter.inc({
+          ...labels,
+          status: response.statusCode.toString(),
+        });
 
         // КРИТИЧЕСКАЯ ПРОВЕРКА: Если заголовки еще НЕ ушли клиенту (обычный эндпоинт)
         if (!response.headersSent) {
           // Инжектируем точное время выполнения в кастомный заголовок HTTP-ответа
-          response.setHeader('X-Response-Time-Ms', duration.toString());
+          response.setHeader('X-Response-Time-Ms', durationMs.toString());
           // Разрешаем фронтенду читать этот заголовок, если они на разных доменах (CORS)
           response.setHeader(
             'Access-Control-Expose-Headers',
             'X-Response-Time-Ms',
           );
         } else {
-          // Если это был стрим, мы не можем добавить заголовок, 
+          // Если это был стрим, мы не можем добавить заголовок,
           // но можем сделать пометку в логах для отладки
           this.logger.log(
-            `[Stream] Стриминг завершен за ${duration}ms (Заголовки были отправлены в процессе) [ID: ${correlationId}]`,
+            `[Stream] Стриминг завершен за ${durationMs}ms (Заголовки были отправлены в процессе) [ID: ${correlationId}]`,
           );
         }
 
         // Если выполнение (включая ожидание микросервисов по fetch/RMQ) > 200мс
-        if (duration > 200) {
+        if (durationMs > 200) {
           this.logger.warn(
-            `[WARN] Slow Request: ${request.method} ${request.url} - ${duration}ms [ID: ${correlationId}]`,
+            `[WARN] Slow Request: ${request.method} ${request.url} - ${durationMs}ms [ID: ${correlationId}]`,
           );
         }
       }),

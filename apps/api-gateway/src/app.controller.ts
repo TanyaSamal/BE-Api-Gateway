@@ -17,6 +17,7 @@ import { AnalyticsCsvTransform } from './analytics/infrastructure/streams/analyt
 import { QueryBus } from '@nestjs/cqrs';
 import { v4 as uuidv4 } from 'uuid';
 import { WorkerPoolService } from './worker-pool/worker-pool.service';
+import { MetricsService } from 'ai/shared/services/metrics.service';
 
 @Controller('analytics')
 export class AppController {
@@ -24,6 +25,7 @@ export class AppController {
     private readonly appService: AppService,
     private readonly queryBus: QueryBus,
     private readonly workerPool: WorkerPoolService,
+    private readonly metricsService: MetricsService,
   ) {}
 
   @UseInterceptors(RedisCacheInterceptor)
@@ -101,5 +103,12 @@ export class AppController {
   @Get('ping')
   getPing() {
     return { status: 'ok', timestamp: new Date().toISOString() };
+  }
+
+  @Get('metrics')
+  async getMetrics(@Res() res: Response) {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    const metrics = await this.metricsService.getMetrics();
+    res.send(metrics);
   }
 }

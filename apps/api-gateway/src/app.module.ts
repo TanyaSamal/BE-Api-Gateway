@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import {
   AppLogger,
   CorrelationContextService,
+  MetricsService,
   RedisModule,
   SharedModule,
 } from 'ai/shared';
@@ -30,6 +31,7 @@ import { PerformanceInterceptor } from './common/interceptors/performance.interc
     AppService,
     AppLogger,
     CorrelationContextService,
+    MetricsService,
     DownloadAnalyticsCsvHandler,
     {
       provide: APP_INTERCEPTOR,
