@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { SharedService } from './shared.service';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { ANALYTICS_QUEUE } from './consts/analytics';
+import { AppLogger } from './logging/app.logger';
+import { CorrelationContextService } from './logging/correlation-context.service';
 
 @Module({
   imports: [
@@ -23,7 +25,7 @@ import { ANALYTICS_QUEUE } from './consts/analytics';
       },
     ]),
   ],
-  providers: [SharedService],
-  exports: [ClientsModule, SharedService],
+  providers: [SharedService, AppLogger, CorrelationContextService],
+  exports: [ClientsModule, SharedService, AppLogger, CorrelationContextService],
 })
 export class SharedModule {}

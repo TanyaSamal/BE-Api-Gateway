@@ -15,7 +15,6 @@ export class OutboxProcessor {
 
   @Interval(500)
   handleOutboxPolling(): void {
-
     // Защита от наложения циклов, если прошлая пачка ещё отправляется по сети
     if (this.isProcessing) return;
     this.isProcessing = true;
