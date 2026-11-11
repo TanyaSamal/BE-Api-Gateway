@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Headers,
+} from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { Task } from '../domain/models/task.model';
 import { CreateTaskCommand } from '../application/commands/create-task.command';
@@ -28,9 +36,13 @@ export class TaskController {
 
   // 2. Завершение задачи (добавляет TaskCompletedEvent)
   @Patch(':id/complete')
-  async completeTask(@Param('id') id: string): Promise<{ success: boolean }> {
+  async completeTask(
+    @Param('id') id: string,
+    @Headers('x-2fa-token') twoFactorToken?: string,
+    @Headers('x-user-id') userId = 'user-1', // Фолбэк на тестового пользователя
+  ): Promise<{ success: boolean }> {
     await this.commandBus.execute<CompleteTaskCommand, void>(
-      new CompleteTaskCommand(id),
+      new CompleteTaskCommand(id, userId, twoFactorToken),
     );
     return { success: true };
   }

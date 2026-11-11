@@ -16,6 +16,7 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { WorkerPoolModule } from './worker-pool/worker-pool.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { PerformanceInterceptor } from './common/interceptors/performance.interceptor';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { PerformanceInterceptor } from './common/interceptors/performance.interc
     CqrsModule,
     WorkerPoolModule,
     ScheduleModule.forRoot(),
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [
