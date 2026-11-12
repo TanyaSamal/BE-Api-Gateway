@@ -13,6 +13,11 @@ async function bootstrap() {
     }),
   );
 
+  app.enableCors({
+    origin: 'http://localhost:3000',
+    exposedHeaders: ['x-correlation-id'], // Важно, чтобы фронтенд мог прочитать ID трассировки из ответа
+  });
+
   const logger = app.get(AppLogger);
   app.useLogger(logger);
 
