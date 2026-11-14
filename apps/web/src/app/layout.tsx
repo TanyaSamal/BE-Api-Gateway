@@ -29,8 +29,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <Link href="/analytics" className="hover:text-sky-400 transition">
                   2. Аналитика (Redis)
                 </Link>
+                <Link href="/performance" className="hover:text-amber-400 transition">
+                  3. Потоки и Воркеры
+                </Link>
+                <Link href="/auth-2fa" className="hover:text-rose-400 transition">
+                  4. 2FA Auth
+                </Link>
                 <Link href="/tracing" className="hover:text-purple-400 transition">
-                  3. Трассировка (Logs)
+                  5. Трассировка (Logs)
                 </Link>
               </div>
             </div>
