@@ -1,5 +1,5 @@
 export interface ITaskResponse {
-  id: string;
+  id: string | number;
   title: string;
   status?: 'OPEN' | 'COMPLETED' | string;
   createdAt?: string;
