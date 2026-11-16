@@ -30,6 +30,7 @@ export class TransactionalStore implements ITaskEventStore {
         {
           userId: 'system',
           action: event.eventName,
+          taskId: event.taskId,
           event: event.payload
         },
         'PENDING',

@@ -3,6 +3,7 @@ import { Interval } from '@nestjs/schedule';
 import { ClientProxy, RmqRecordBuilder } from '@nestjs/microservices';
 import { TransactionalStore } from '../persistence/transactional-store';
 import { v4 as uuidv4 } from 'uuid';
+import { TasksGateway } from '../../interface/tasks.gateway';
 
 @Injectable()
 export class OutboxProcessor {
@@ -11,6 +12,7 @@ export class OutboxProcessor {
   constructor(
     @Inject('EVENT_STORE') private readonly eventStore: TransactionalStore,
     @Inject('ANALYTICS_SERVICE') private readonly analyticsClient: ClientProxy,
+    private readonly tasksGateway: TasksGateway,
   ) {}
 
   @Interval(500)
@@ -50,13 +52,22 @@ export class OutboxProcessor {
             })
             .build();
 
-          // Посылаем "огненный выстрел" в RabbitMQ
+          // 1. Посылаем в RabbitMQ
           this.analyticsClient.emit(pattern, record);
           console.log(
             `[🚀 Outbox Sent] Событие ${event.id} выброшено в RabbitMQ`,
           );
 
-          // Помечаем событие как успешно обработанное в БД
+          // 2. Транслируем завершение задачи по WebSocket на фронтенд
+          if (event.payload.action === 'TaskCompletedEvent') {
+            this.tasksGateway.notifyTaskCompleted({
+              taskId: String(event.payload.taskId),
+              completedAt: new Date().toISOString(),
+              correlationId,
+            });
+          }
+
+          // 3. Помечаем событие как успешно обработанное в БД
           return this.eventStore.markAsProcessed(event.id);
         });
 

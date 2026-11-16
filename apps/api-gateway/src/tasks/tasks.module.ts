@@ -9,6 +9,7 @@ import { TransactionalStore } from './infrastructure/persistence/transactional-s
 import { DatabaseModule } from './infrastructure/persistence/database.module';
 import { SharedModule } from 'ai/shared';
 import { GetTasksHandler } from './application/queries/get-tasks.handler';
+import { TasksGateway } from './interface/tasks.gateway';
 
 const CommandHandlers = [CreateTaskHandler, CompleteTaskHandler];
 const QueryHandlers = [GetTaskHandler, GetTasksHandler];
@@ -20,6 +21,7 @@ const QueryHandlers = [GetTaskHandler, GetTasksHandler];
     ...CommandHandlers,
     ...QueryHandlers,
     OutboxProcessor,
+    TasksGateway,
     // Регистрируем Event Store через текстовый токен инверсии зависимостей
     {
       provide: 'EVENT_STORE',

@@ -4,13 +4,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { Inject } from '@nestjs/common';
 import { ITaskEventStore } from '../../domain/repositories/task-event-store.interface';
 import { TaskCreatedEvent } from '../../domain/models/task-events';
-import { MASTER_DB_CONNECTION } from '../../infrastructure/persistence/database.module';
 
 @CommandHandler(CreateTaskCommand)
 export class CreateTaskHandler implements ICommandHandler<CreateTaskCommand> {
   constructor(
-    @Inject(MASTER_DB_CONNECTION)
-    private readonly masterEventStore: ITaskEventStore, // Инжектируем Мастер
+    @Inject('EVENT_STORE')
+    private readonly transactionalStore: ITaskEventStore, // <-- Подключаем TransactionalStore (Outbox)
   ) {}
 
   async execute(command: CreateTaskCommand): Promise<string> {
@@ -19,7 +18,7 @@ export class CreateTaskHandler implements ICommandHandler<CreateTaskCommand> {
 
     const event = new TaskCreatedEvent(taskId, title, description);
 
-    await this.masterEventStore.saveEvent(event); // Запись строго на Мастер!
+    await this.transactionalStore.saveEvent(event);
 
     return taskId;
   }
