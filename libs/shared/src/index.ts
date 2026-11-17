@@ -5,6 +5,7 @@ export * from './dto/get-analytics.dto';
 export * from './dto/track-event.dto';
 export * from './consts/analytics';
 export * from './redis/redis.module';
+export * from './redis/redis-io.adapter';
 export * from './interceptors/redis-cache.interceptor';
 export * from './logging/correlation-context.service';
 export * from './logging/app.logger';
