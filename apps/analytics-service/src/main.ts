@@ -11,7 +11,7 @@ async function bootstrap() {
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.RMQ,
     options: {
-      urls: ['amqp://localhost:5672'], // URL нашего Docker-контейнера RabbitMQ
+      urls: [process.env.RABBITMQ_URL || 'amqp://localhost:5672'], // URL нашего Docker-контейнера RabbitMQ
       queue: ANALYTICS_QUEUE,
       queueOptions: { durable: true }, // Очередь не пропадет при перезапуске RabbitMQ
       socketOptions: {

@@ -1,24 +1,34 @@
-version: '3.8'
-
 services:
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
     container_name: nest_rabbitmq
     ports:
-      - "5672:5672"     # Порт для подключения NestJS (AMQP-протокол)
-      - "15672:15672"   # Порт для веб-панели управления (Management Plugin)
+      - "5672:5672"
+      - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     restart: always
+
   redis:
     image: redis:7-alpine
     container_name: nest_redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     restart: always
+
   prometheus:
     image: prom/prometheus:latest
     container_name: nestjs_prometheus
@@ -26,6 +36,7 @@ services:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
+    restart: always
 
   grafana:
     image: grafana/grafana:latest
@@ -33,9 +44,60 @@ services:
     ports:
       - "3010:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin # Пароль для первого входа в веб-панель - new - tanya
+      - GF_SECURITY_ADMIN_PASSWORD=admin
     depends_on:
       - prometheus
+    restart: always
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: nest_api_gateway
+    command: ["node", "dist/apps/api-gateway/main.js"]
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: always
+
+  analytics-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: nest_analytics_service
+    command: ["node", "dist/apps/analytics-service/main.js"]
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: always
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3001
+    container_name: next_web_client
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
+    restart: always
 
 volumes:
   rabbitmq_data:

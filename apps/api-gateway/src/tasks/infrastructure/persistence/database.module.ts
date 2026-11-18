@@ -1,5 +1,5 @@
 import { Module, Global, Inject } from '@nestjs/common';
-import { AppLogger, SharedModule } from 'ai/shared';
+import { SharedModule } from 'ai/shared';
 import { InMemoryEventStore } from './in-memory-event-store';
 
 // Токены для внедрения зависимостей

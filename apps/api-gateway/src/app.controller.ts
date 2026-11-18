@@ -7,6 +7,8 @@ import {
   Res,
   UseInterceptors,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { AppService } from './app.service';
 import { GetAnalyticsDashboardDto, RedisCacheInterceptor } from 'ai/shared';

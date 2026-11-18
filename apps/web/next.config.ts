@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  output: 'standalone',
   experimental: {
     externalDir: true,
   },

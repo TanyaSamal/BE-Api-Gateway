@@ -1,0 +1,36 @@
+# --- Этап 1: Установка зависимостей ---
+FROM node:22-alpine AS deps
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --legacy-peer-deps
+
+# --- Этап 2: Сборка монорепозитория ---
+FROM node:22-alpine AS builder
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Собираем оба приложения NestJS
+RUN npx nest build api-gateway && npx nest build analytics-service
+
+# --- Этап 3: Продакшен-образ ---
+FROM node:22-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY package*.json ./
+RUN npm ci --only=production --legacy-peer-deps && npm cache clean --force
+
+# Копируем скомпилированный код из этапа сборки
+COPY --from=builder /app/dist ./dist
+
+# Запускаем от имени непривилегированного пользователя для безопасности
+USER node
+
+EXPOSE 3001
+
+# По умолчанию запускаем api-gateway
+CMD ["node", "dist/apps/api-gateway/main.js"]
