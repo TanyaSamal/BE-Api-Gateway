@@ -3,6 +3,7 @@ import {
   WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
@@ -19,11 +20,20 @@ export interface TaskCompletedWsPayload {
     credentials: true,
   },
 })
-export class TasksGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class TasksGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server!: Server;
 
   private readonly logger = new Logger(TasksGateway.name);
+
+  afterInit() {
+    this.logger.log(
+      'WebSocket Gateway успешно инициализирован!',
+      'TasksGateway',
+    );
+  }
 
   handleConnection(client: Socket) {
     this.logger.log(`WS Client connected: ${client.id}`);
@@ -34,6 +44,10 @@ export class TasksGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   notifyTaskCompleted(payload: TaskCompletedWsPayload) {
+    if (!this.server) {
+      this.logger.warn('WebSocket server не инициализирован, пропуск отправки');
+      return;
+    }
     this.logger.log(`Broadcasting task.completed for task ${payload.taskId}`);
     this.server.emit('task.completed', payload);
   }

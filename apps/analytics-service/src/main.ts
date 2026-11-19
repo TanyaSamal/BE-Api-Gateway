@@ -1,3 +1,6 @@
+import { initTracing } from 'ai/shared';
+initTracing('api-gateway');
+
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { AnalyticsServiceModule } from './analytics-service.module';

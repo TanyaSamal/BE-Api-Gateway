@@ -1,4 +1,8 @@
 import { NestFactory } from '@nestjs/core';
+
+import { initTracing } from 'ai/shared';
+initTracing('api-gateway');
+
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { AppLogger, RedisIoAdapter } from 'ai/shared';

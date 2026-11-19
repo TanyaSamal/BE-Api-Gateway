@@ -49,6 +49,18 @@ services:
       - prometheus
     restart: always
 
+  # --- ТРАССИРОВКА (JAEGER) ---
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: nest_jaeger
+    ports:
+      - "16686:16686" # Веб-интерфейс Jaeger UI
+      - "4318:4318"   # Прием трейсов по OTLP/HTTP
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    restart: always
+
+
   api-gateway:
     build:
       context: .
@@ -62,11 +74,15 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      OTEL_SERVICE_NAME: api-gateway
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318/v1/traces
     depends_on:
       redis:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     restart: always
 
   analytics-service:
@@ -79,11 +95,15 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      OTEL_SERVICE_NAME: analytics-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318/v1/traces
     depends_on:
       redis:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     restart: always
 
   web:

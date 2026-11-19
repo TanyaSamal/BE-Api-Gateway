@@ -10,3 +10,4 @@ export * from './interceptors/redis-cache.interceptor';
 export * from './logging/correlation-context.service';
 export * from './logging/app.logger';
 export * from './services/metrics.service';
+export * from './tracing/tracing';

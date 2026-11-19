@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { MASTER_DB_CONNECTION } from './database.module';
 import { AppLogger } from 'ai/shared';
 import { InMemoryEventStore } from './in-memory-event-store';
+import { trace } from '@opentelemetry/api';
 
 @Injectable()
 export class TransactionalStore implements ITaskEventStore {
@@ -21,33 +22,43 @@ export class TransactionalStore implements ITaskEventStore {
       'TransactionalStore',
     );
 
-    try {
-      await this.masterDb.saveEvent(event);
+    const tracer = trace.getTracer('transactional-outbox');
+    return tracer.startActiveSpan(
+      `Outbox.Save:${event.eventName}`,
+      async (span) => {
+        try {
+          span.setAttribute('task.id', event.taskId);
 
-      const outboxEvent = new OutboxEvent(
-        uuidv4(),
-        'track_action',
-        {
-          userId: 'system',
-          action: event.eventName,
-          taskId: event.taskId,
-          event: event.payload
-        },
-        'PENDING',
-        new Date(),
-      );
+          await this.masterDb.saveEvent(event);
 
-      // 1. Записываем событие в Event Store (таблица логов изменений) через Master
-      await this.masterDb.insertOutboxEvent(outboxEvent);
+          const outboxEvent = new OutboxEvent(
+            uuidv4(),
+            'track_action',
+            {
+              userId: 'system',
+              action: event.eventName,
+              taskId: event.taskId,
+              event: event.payload,
+            },
+            'PENDING',
+            new Date(),
+          );
 
-      this.logger.log(
-        `[Transactional Outbox] Событие и Outbox-уведомление для задачи #${event.taskId} успешно зафиксированы на Master-узле!`,
-        'TransactionalStore',
-      );
-    } catch (error) {
-      console.error('[❌ Transaction Rollback] Ошибка транзакции!', error);
-      throw new Error('Transaction failed');
-    }
+          // 1. Записываем событие в Event Store (таблица логов изменений) через Master
+          await this.masterDb.insertOutboxEvent(outboxEvent);
+
+          this.logger.log(
+            `[Transactional Outbox] Событие и Outbox-уведомление для задачи #${event.taskId} успешно зафиксированы на Master-узле!`,
+            'TransactionalStore',
+          );
+        } catch (error) {
+          console.error('[❌ Transaction Rollback] Ошибка транзакции!', error);
+          throw new Error('Transaction failed');
+        } finally {
+          span.end();
+        }
+      },
+    );
   }
 
   // Алиас для вызова со стороны Command хэндлеров
