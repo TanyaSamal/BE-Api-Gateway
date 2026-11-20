@@ -16,9 +16,12 @@ export class DownloadAnalyticsCsvHandler implements IQueryHandler<
     const correlationId =
       this.contextService.getCorrelationId() || 'fallback-gateway-id';
 
+    const analyticsServiceUrl =
+      process.env.ANALYTICS_SERVICE_URL || 'http://localhost:3002';
+
     // Делаем нативный асинхронный HTTP-запрос к микросервису аналитики
     const response = await fetch(
-      'http://localhost:3002/internal/analytics/stream',
+      `${analyticsServiceUrl}/internal/analytics/stream`,
       {
         method: 'GET',
         headers: {
