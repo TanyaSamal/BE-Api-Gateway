@@ -1,13 +1,18 @@
 // apps/analytics-service/src/analytics-internal.controller.ts
-import { Controller, Get, Res } from '@nestjs/common';
+import { Controller, Get, Post, Res } from '@nestjs/common';
 import { TRACK_ACTION } from 'ai/shared';
 import { Response } from 'express';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { v4 as uuidv4 } from 'uuid';
+import { AnalyticsServiceService } from './analytics-service.service';
 
 @Controller('internal/analytics')
 export class AnalyticsInternalController {
+  constructor(
+    private readonly analyticsServiceService: AnalyticsServiceService,
+  ) {}
+
   // Наш in-memory генератор (имитация курсора)
   private async *generateInMemoryLogs(): AsyncGenerator<string, void, unknown> {
     const totalRecords = 100000;
@@ -50,5 +55,10 @@ export class AnalyticsInternalController {
         res.status(500).end();
       }
     }
+  }
+
+  @Post('chaos')
+  toggleChaos() {
+    return { isBroken: this.analyticsServiceService.toggleChaos() };
   }
 }

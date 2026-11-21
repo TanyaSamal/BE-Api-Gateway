@@ -1,12 +1,24 @@
 import { Injectable } from '@nestjs/common';
+import { RpcException } from '@nestjs/microservices';
 import { IAnalyticsDashboardResponse, TrackEventDto } from 'ai/shared';
 
 @Injectable()
 export class AnalyticsServiceService {
+  private isBroken = false; // Флаг для симуляции падения сервиса
+
+  toggleChaos(): boolean {
+    this.isBroken = !this.isBroken;
+    return this.isBroken;
+  }
+
   getAnalyticsData(
     userId: number,
     period: string = '7_days',
   ): IAnalyticsDashboardResponse {
+    if (this.isBroken) {
+      throw new RpcException('Simulated Analytics Service Failure');
+    }
+
     return {
       period: period,
       generatedAt: new Date().toISOString(),

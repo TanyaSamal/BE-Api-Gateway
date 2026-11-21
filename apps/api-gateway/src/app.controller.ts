@@ -30,7 +30,7 @@ export class AppController {
     private readonly metricsService: MetricsService,
   ) {}
 
-  @UseInterceptors(RedisCacheInterceptor)
+  // @UseInterceptors(RedisCacheInterceptor)
   @Get('dashboard')
   async getAnalyticsDashboard(@Query() query: GetAnalyticsDashboardDto) {
     const result = await this.appService.getDashboardData(
@@ -42,6 +42,11 @@ export class AppController {
       success: true,
       data: result,
     };
+  }
+
+  @Get('circuit-status')
+  getCircuitStatus() {
+    return this.appService.getCircuitStatus();
   }
 
   @Post('track')

@@ -92,6 +92,8 @@ services:
       dockerfile: Dockerfile.backend
     container_name: nest_analytics_service
     command: ["node", "dist/apps/analytics-service/main.js"]
+    ports:
+      - "3002:3002"
     environment:
       REDIS_HOST: redis
       REDIS_PORT: 6379
