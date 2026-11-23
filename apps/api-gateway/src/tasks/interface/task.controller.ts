@@ -12,7 +12,9 @@ import { Task } from '../domain/models/task.model';
 import { CreateTaskCommand } from '../application/commands/create-task.command';
 import { GetTaskQuery } from '../application/queries/get-task.query';
 import { CompleteTaskCommand } from '../application/commands/complete-task.command';
+import { SkipThrottle } from '@nestjs/throttler';
 
+@SkipThrottle()
 @Controller('tasks')
 export class TaskController {
   // Внедряем встроенные шины CQRS от NestJS

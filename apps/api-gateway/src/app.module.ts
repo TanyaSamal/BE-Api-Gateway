@@ -14,9 +14,12 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { DownloadAnalyticsCsvHandler } from './analytics/application/queries/download-analytics-csv.handler';
 import { CqrsModule } from '@nestjs/cqrs';
 import { WorkerPoolModule } from './worker-pool/worker-pool.module';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { PerformanceInterceptor } from './common/interceptors/performance.interceptor';
 import { AuthModule } from './auth/auth.module';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
+import Redis from 'ioredis';
 
 @Module({
   imports: [
@@ -27,6 +30,19 @@ import { AuthModule } from './auth/auth.module';
     WorkerPoolModule,
     ScheduleModule.forRoot(),
     AuthModule,
+    ThrottlerModule.forRootAsync({
+      inject: ['REDIS_CLIENT'],
+      useFactory: (redis: Redis) => ({
+        throttlers: [
+          {
+            name: 'default',
+            ttl: 60000, // Окно в 60 секунд (в миллисекундах в @nestjs/throttler v5/v6)
+            limit: 10, // Максимум 10 запросов за 60 секунд с одного IP
+          },
+        ],
+        storage: new ThrottlerStorageRedisService(redis),
+      }),
+    }),
   ],
   controllers: [AppController],
   providers: [
@@ -38,6 +54,11 @@ import { AuthModule } from './auth/auth.module';
     {
       provide: APP_INTERCEPTOR,
       useClass: PerformanceInterceptor,
+    },
+    // Регистрируем ThrottlerGuard глобально на все HTTP-роуты api-gateway
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
     },
   ],
 })

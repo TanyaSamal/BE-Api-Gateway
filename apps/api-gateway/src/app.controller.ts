@@ -20,6 +20,7 @@ import { QueryBus } from '@nestjs/cqrs';
 import { v4 as uuidv4 } from 'uuid';
 import { WorkerPoolService } from './worker-pool/worker-pool.service';
 import { MetricsService } from 'ai/shared/services/metrics.service';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('analytics')
 export class AppController {
@@ -90,6 +91,7 @@ export class AppController {
   }
 
   // Тяжелый эндпоинт (выполняется 3 секунды в фоне)
+  @Throttle({ default: { limit: 2, ttl: 60000 } })
   @Get('heavy-report')
   async getHeavyReport(@Query('client') client: string) {
     const reportId = uuidv4();
