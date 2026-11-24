@@ -51,4 +51,13 @@ export class TasksGateway
     this.logger.log(`Broadcasting task.completed for task ${payload.taskId}`);
     this.server.emit('task.completed', payload);
   }
+
+  notifyTaskDeleted(taskId: string) {
+    if (!this.server) {
+      this.logger.warn('WebSocket server не инициализирован, пропуск отправки');
+      return;
+    }
+    this.logger.log(`Broadcasting task.deleted for task ${taskId}`);
+    this.server.emit('task.deleted', taskId);
+  }
 }

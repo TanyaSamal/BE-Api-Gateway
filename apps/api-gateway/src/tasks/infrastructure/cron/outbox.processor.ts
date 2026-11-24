@@ -67,6 +67,11 @@ export class OutboxProcessor {
             });
           }
 
+          // 2. Транслируем удаление задачи по WebSocket на фронтенд
+          if (event.payload.action === 'TaskDeletedEvent') {
+            this.tasksGateway.notifyTaskDeleted(String(event.payload.taskId));
+          }
+
           // 3. Помечаем событие как успешно обработанное в БД
           return this.eventStore.markAsProcessed(event.id);
         });

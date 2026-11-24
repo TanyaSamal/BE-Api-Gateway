@@ -10,8 +10,15 @@ import { DatabaseModule } from './infrastructure/persistence/database.module';
 import { SharedModule } from 'ai/shared';
 import { GetTasksHandler } from './application/queries/get-tasks.handler';
 import { TasksGateway } from './interface/tasks.gateway';
+import { DeleteTaskHandler } from './application/commands/delete-task.handler';
+import { CaslAbilityFactory } from './casl/casl-ability.factory';
+import { DeleteTaskGuard } from './casl/delete-task.guard';
 
-const CommandHandlers = [CreateTaskHandler, CompleteTaskHandler];
+const CommandHandlers = [
+  CreateTaskHandler,
+  CompleteTaskHandler,
+  DeleteTaskHandler,
+];
 const QueryHandlers = [GetTaskHandler, GetTasksHandler];
 
 @Module({
@@ -27,6 +34,8 @@ const QueryHandlers = [GetTaskHandler, GetTasksHandler];
       provide: 'EVENT_STORE',
       useClass: TransactionalStore,
     },
+    CaslAbilityFactory,
+    DeleteTaskGuard,
   ],
 })
 export class TasksModule {}

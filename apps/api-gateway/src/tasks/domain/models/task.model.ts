@@ -8,6 +8,9 @@ export class Task {
   public description!: string;
   public status!: TaskStatus;
   public createdAt!: Date;
+  public authorId!: string;
+  public isCompleted = false;
+  public isDeleted = false;
 
   constructor() {}
 
@@ -32,10 +35,15 @@ export class Task {
           task.description = event.payload.description;
           task.status = 'PENDING';
           task.createdAt = event.createdAt;
+          task.authorId = event.payload.authorId || 'user-1';
           break;
 
         case 'TaskCompletedEvent':
           task.status = 'COMPLETED';
+          break;
+
+        case 'TaskDeletedEvent':
+          task.isDeleted = true;
           break;
 
         default:

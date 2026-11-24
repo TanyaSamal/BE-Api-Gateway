@@ -6,6 +6,8 @@ import {
   Patch,
   Param,
   Headers,
+  Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { Task } from '../domain/models/task.model';
@@ -13,6 +15,8 @@ import { CreateTaskCommand } from '../application/commands/create-task.command';
 import { GetTaskQuery } from '../application/queries/get-task.query';
 import { CompleteTaskCommand } from '../application/commands/complete-task.command';
 import { SkipThrottle } from '@nestjs/throttler';
+import { DeleteTaskGuard } from '../casl/delete-task.guard';
+import { DeleteTaskCommand } from '../application/commands/delete-task.command';
 
 @SkipThrottle()
 @Controller('tasks')
@@ -28,10 +32,11 @@ export class TaskController {
   async createTask(
     @Body('title') title: string,
     @Body('description') description: string,
+    @Headers('x-user-id') userId = 'user-1',
   ): Promise<{ id: string }> {
     // Отправляем команду в CommandBus. NestJS сам найдет нужный CreateTaskHandler
     const taskId = await this.commandBus.execute<CreateTaskCommand, string>(
-      new CreateTaskCommand(title, description),
+      new CreateTaskCommand(title, description, userId),
     );
     return { id: taskId };
   }
@@ -56,5 +61,18 @@ export class TaskController {
     return await this.queryBus.execute<GetTaskQuery, Task>(
       new GetTaskQuery(id),
     );
+  }
+
+  // 4. Удаление задачи (защищено CASL Guard)
+  @Delete(':id')
+  @UseGuards(DeleteTaskGuard)
+  async deleteTask(
+    @Param('id') id: string,
+    @Headers('x-user-id') userId = 'user-1',
+  ): Promise<{ success: boolean; deletedTaskId: string }> {
+    await this.commandBus.execute<DeleteTaskCommand, void>(
+      new DeleteTaskCommand(id, userId),
+    );
+    return { success: true, deletedTaskId: id };
   }
 }

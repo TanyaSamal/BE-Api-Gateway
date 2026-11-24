@@ -13,10 +13,10 @@ export class CreateTaskHandler implements ICommandHandler<CreateTaskCommand> {
   ) {}
 
   async execute(command: CreateTaskCommand): Promise<string> {
-    const { title, description } = command;
+    const { title, description, authorId } = command;
     const taskId = uuidv4();
 
-    const event = new TaskCreatedEvent(taskId, title, description);
+    const event = new TaskCreatedEvent(taskId, title, description, authorId);
 
     await this.transactionalStore.saveEvent(event);
 
