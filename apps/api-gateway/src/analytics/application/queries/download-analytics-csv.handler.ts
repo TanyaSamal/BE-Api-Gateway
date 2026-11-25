@@ -1,7 +1,7 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { DownloadAnalyticsCsvQuery } from './download-analytics-csv.query';
 import { Readable } from 'stream';
-import { CorrelationContextService } from 'ai/shared';
+import { CorrelationContextService } from '@ai/shared';
 
 @QueryHandler(DownloadAnalyticsCsvQuery)
 export class DownloadAnalyticsCsvHandler implements IQueryHandler<

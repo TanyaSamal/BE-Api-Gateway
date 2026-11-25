@@ -13,7 +13,7 @@
   "testEnvironment": "node",
   "roots": ["<rootDir>"],
   "moduleNameMapper": {
-    "^ai/shared(|/.*)$": "<rootDir>/../../libs/shared/src/$1"
+    "^@ai/shared(|/.*)$": "<rootDir>/../../libs/shared/src/$1"
   },
   "setupFilesAfterEnv": [],
   "testTimeout": 30000

@@ -14,7 +14,7 @@ import {
   IAnalyticsDashboardResponse,
   TRACK_ACTION,
   TrackEventDto,
-} from 'ai/shared';
+} from '@ai/shared';
 import { AnalyticsServiceService } from './analytics-service.service';
 import { Message } from 'amqplib';
 

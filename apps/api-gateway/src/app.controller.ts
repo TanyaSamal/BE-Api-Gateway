@@ -11,15 +11,15 @@ import type { Response } from 'express';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { AppService } from './app.service';
-import { GetAnalyticsDashboardDto, RedisCacheInterceptor } from 'ai/shared';
-import { TrackEventDto } from 'ai/shared/dto/track-event.dto';
+import { GetAnalyticsDashboardDto, RedisCacheInterceptor } from '@ai/shared';
+import { TrackEventDto } from '@ai/shared/dto/track-event.dto';
 import { DownloadAnalyticsCsvQuery } from './analytics/application/queries/download-analytics-csv.query';
 import { NdjsonParseTransform } from './analytics/infrastructure/streams/ndjson-parse.transform';
 import { AnalyticsCsvTransform } from './analytics/infrastructure/streams/analytics-csv.transform';
 import { QueryBus } from '@nestjs/cqrs';
 import { v4 as uuidv4 } from 'uuid';
 import { WorkerPoolService } from './worker-pool/worker-pool.service';
-import { MetricsService } from 'ai/shared/services/metrics.service';
+import { MetricsService } from '@ai/shared/services/metrics.service';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
 @Controller('analytics')

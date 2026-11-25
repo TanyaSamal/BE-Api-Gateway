@@ -11,7 +11,7 @@ import {
   AppLogger,
   CorrelationContextService,
   MetricsService,
-} from 'ai/shared';
+} from '@ai/shared';
 
 @Injectable()
 export class PerformanceInterceptor implements NestInterceptor {

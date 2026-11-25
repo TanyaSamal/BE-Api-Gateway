@@ -11,7 +11,7 @@ import {
   CorrelationContextService,
   IAnalyticsDashboardResponse,
   TrackEventDto,
-} from 'ai/shared';
+} from '@ai/shared';
 import Redis from 'ioredis';
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

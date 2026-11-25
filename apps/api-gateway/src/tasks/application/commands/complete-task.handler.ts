@@ -2,7 +2,7 @@ import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { TaskCompletedEvent } from '../../domain/models/task-events';
 import { ITaskEventStore } from '../../domain/repositories/task-event-store.interface';
 import { CompleteTaskCommand } from './complete-task.command';
-import { AppLogger, CorrelationContextService } from 'ai/shared';
+import { AppLogger, CorrelationContextService } from '@ai/shared';
 import { Inject } from '@nestjs/common';
 
 @CommandHandler(CompleteTaskCommand)

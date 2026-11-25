@@ -2,7 +2,7 @@ import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { GetTasksQuery } from './get-tasks.query';
 import { Inject } from '@nestjs/common';
 import { SLAVE_DB_CONNECTION } from '../../infrastructure/persistence/database.module';
-import { AppLogger, CorrelationContextService } from 'ai/shared';
+import { AppLogger, CorrelationContextService } from '@ai/shared';
 import { Task } from '../../domain/models/task.model';
 import { InMemoryEventStore } from '../../infrastructure/persistence/in-memory-event-store';
 

@@ -19,10 +19,10 @@
     "noFallthroughCasesInSwitch": false,
     "types": ["jest"],
     "paths": {
-      "ai/shared": [
+      "@ai/shared": [
         "libs/shared/src"
       ],
-      "ai/shared/*": [
+      "@ai/shared/*": [
         "libs/shared/src/*"
       ]
     }

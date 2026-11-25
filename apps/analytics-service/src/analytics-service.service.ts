@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { RpcException } from '@nestjs/microservices';
-import { IAnalyticsDashboardResponse, TrackEventDto } from 'ai/shared';
+import { IAnalyticsDashboardResponse, TrackEventDto } from '@ai/shared';
 
 @Injectable()
 export class AnalyticsServiceService {

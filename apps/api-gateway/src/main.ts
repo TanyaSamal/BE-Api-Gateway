@@ -1,11 +1,13 @@
+process.loadEnvFile?.();
+
 import { NestFactory } from '@nestjs/core';
 
-import { initTracing } from 'ai/shared';
+import { initTracing } from '@ai/shared';
 initTracing('api-gateway');
 
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import { AppLogger, RedisIoAdapter } from 'ai/shared';
+import { AppLogger, RedisIoAdapter } from '@ai/shared';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

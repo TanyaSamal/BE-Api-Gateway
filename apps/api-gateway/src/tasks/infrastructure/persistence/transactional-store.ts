@@ -4,7 +4,7 @@ import { IEvent } from '../../domain/models/task-events';
 import { OutboxEvent } from '../../domain/models/outbox-event.model';
 import { v4 as uuidv4 } from 'uuid';
 import { MASTER_DB_CONNECTION } from './database.module';
-import { AppLogger } from 'ai/shared';
+import { AppLogger } from '@ai/shared';
 import { InMemoryEventStore } from './in-memory-event-store';
 import { trace } from '@opentelemetry/api';
 

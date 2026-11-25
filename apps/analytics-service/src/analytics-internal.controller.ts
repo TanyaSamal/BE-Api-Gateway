@@ -1,6 +1,6 @@
 // apps/analytics-service/src/analytics-internal.controller.ts
 import { Controller, Get, Post, Res } from '@nestjs/common';
-import { TRACK_ACTION } from 'ai/shared';
+import { TRACK_ACTION } from '@ai/shared';
 import { Response } from 'express';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';

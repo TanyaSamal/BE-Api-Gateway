@@ -1,10 +1,10 @@
-import { initTracing } from 'ai/shared';
+import { initTracing } from '@ai/shared';
 initTracing('api-gateway');
 
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { AnalyticsServiceModule } from './analytics-service.module';
-import { ANALYTICS_QUEUE, AppLogger } from 'ai/shared';
+import { ANALYTICS_QUEUE, AppLogger } from '@ai/shared';
 
 async function bootstrap() {
   // 1. Создаем обычное NestJS приложение (оно будет слушать HTTP)

@@ -7,7 +7,7 @@ import {
   MetricsService,
   RedisModule,
   SharedModule,
-} from 'ai/shared';
+} from '@ai/shared';
 import { TasksModule } from './tasks/tasks.module';
 import { CorrelationMiddleware } from './common/middleware/correlation.middleware';
 import { ScheduleModule } from '@nestjs/schedule';
