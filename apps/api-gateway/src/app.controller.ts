@@ -20,7 +20,7 @@ import { QueryBus } from '@nestjs/cqrs';
 import { v4 as uuidv4 } from 'uuid';
 import { WorkerPoolService } from './worker-pool/worker-pool.service';
 import { MetricsService } from 'ai/shared/services/metrics.service';
-import { Throttle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
 @Controller('analytics')
 export class AppController {
@@ -45,6 +45,7 @@ export class AppController {
     };
   }
 
+  @SkipThrottle()
   @Get('circuit-status')
   getCircuitStatus() {
     return this.appService.getCircuitStatus();

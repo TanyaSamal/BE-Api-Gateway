@@ -17,7 +17,12 @@ export interface RequestLog {
 interface TraceContextType {
   logs: RequestLog[];
   clearLogs: () => void;
-  sendRequest: <T>(method: string, endpoint: string, body?: unknown) => Promise<T | null>;
+  sendRequest: <T>(
+    method: string,
+    endpoint: string,
+    body?: unknown,
+    headers?: Record<string, string>,
+  ) => Promise<T | null>;
 }
 
 const TraceContext = createContext<TraceContextType | null>(null);
@@ -29,11 +34,13 @@ export function TraceProvider({ children }: { children: ReactNode }) {
     method: string,
     endpoint: string,
     body?: unknown,
+    headers?: Record<string, string>,
   ): Promise<T | null> => {
     try {
       const res = await apiRequest<T>(endpoint, {
         method,
         body: body ? JSON.stringify(body) : undefined,
+        headers,
       });
 
       setLogs((prev) => [

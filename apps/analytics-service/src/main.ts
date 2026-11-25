@@ -24,6 +24,10 @@ async function bootstrap() {
     },
   });
 
+  app.enableCors({
+    origin: 'http://localhost:3000',
+  });
+
   // 3. Запускаем микросервисы
   await app.startAllMicroservices();
 

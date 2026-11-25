@@ -12,6 +12,8 @@ interface TaskCompletedWsPayload {
   correlationId?: string;
 }
 
+interface TaskItem extends Omit<ITaskResponse, 'authorId' | 'isDeleted'> { authorId?: string; isDeleted?: boolean; }
+
 export default function TasksPage() {
   const { sendRequest } = useTrace();
   const [title, setTitle] = useState('');
@@ -19,6 +21,14 @@ export default function TasksPage() {
   const [tasksList, setTasksList] = useState<ITaskResponse[]>([]);
   const [selectedTask, setSelectedTask] = useState<ITaskResponse | null>(null);
   const [isWsConnected, setIsWsConnected] = useState(false);
+
+  // Состояние текущего пользователя для тестирования CASL ABAC
+  const [currentUserId, setCurrentUserId] = useState('user-1');
+  const [currentUserRole, setCurrentUserRole] = useState<'user' | 'admin'>('user');
+  const [caslFeedback, setCaslFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
   // Подключение к WebSocket Gateway и подписка на TaskCompletedEvent
   useEffect(() => {
@@ -67,14 +77,18 @@ export default function TasksPage() {
    const handleCreate = async (e: React.SubmitEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
+    setCaslFeedback(null);
 
-    const res = await sendRequest<ITaskResponse | string>('POST', '/tasks', { title });
+    const res = await sendRequest<ITaskResponse | string>('POST', '/tasks', { title }, { 'x-user-id': currentUserId });
+
     if (res) {
       const resolvedId = extractTaskId(res);
-      const createdTask: ITaskResponse = {
+      const createdTask: TaskItem = {
         id: resolvedId,
         title,
         status: 'OPEN',
+        authorId: currentUserId,
+        isDeleted: false,
       };
 
       setTitle('');
@@ -95,6 +109,9 @@ export default function TasksPage() {
     if (res) {
       setSelectedTask(res);
       setTaskId(String(res.id));
+      setTasksList((prev) =>
+        prev.map((t) => (t.id === String(res.id) ? { ...t, ...res } : t)),
+      );
     }
   };
   
@@ -102,31 +119,97 @@ export default function TasksPage() {
   const handleComplete = async (taskId: string | number) => {
     const cleanId = String(taskId ?? '').trim();
     if (!cleanId) return;
+    setCaslFeedback(null);
 
-    await sendRequest<ITaskResponse>('PATCH', `/tasks/${taskId}/complete`);
+    await sendRequest<ITaskResponse>('PATCH', `/tasks/${taskId}/complete`, undefined, { 'x-user-id': currentUserId });
+  };
+
+  // Удаление задачи с проверкой прав через CASL Guard
+  const handleDelete = async (targetId: string | number) => {
+    const cleanId = String(targetId ?? '').trim();
+    if (!cleanId) return;
+    setCaslFeedback(null);
+
+    const res = await sendRequest<{
+      success?: boolean;
+      message?: string;
+      statusCode?: number;
+    }>('DELETE', `/tasks/${cleanId}`, undefined, { 'x-user-id': currentUserId, 'x-user-role': currentUserRole });
+
+    if (res && res.success) {
+      setCaslFeedback({
+        type: 'success',
+        message: `Задача удалена пользователем ${currentUserId} (${currentUserRole})`,
+      });
+      // Делаем Replay, чтобы получить обновленный агрегат с isDeleted: true
+      await handleReplay(cleanId);
+    } else {
+      setCaslFeedback({
+        type: 'error',
+        message:
+          res?.message ||
+          `403 Forbidden: ${currentUserId} (${currentUserRole}) не может удалить эту задачу`,
+      });
+    }
   };
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold text-emerald-400">
-        Задачи (CQRS + Event Sourcing + Outbox + WS)
-      </h1>
-      <div
-        className={`text-xs px-2.5 py-1 rounded-full inline-block font-mono ${
-          isWsConnected
-            ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-            : 'bg-rose-950 text-rose-400 border border-rose-800'
-        }`}
-      >
-        {isWsConnected ? '● WS Connected' : '○ WS Disconnected'}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="space-y-1.5">
+          <h1 className="text-xl font-bold text-emerald-400">
+            Задачи (CQRS + Event Sourcing + Outbox + WS + CASL)
+          </h1>
+          <div
+            className={`text-xs px-2.5 py-1 rounded-full inline-block font-mono ${
+              isWsConnected
+                ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                : 'bg-rose-950 text-rose-400 border border-rose-800'
+            }`}
+          >
+            {isWsConnected ? '● WS Connected' : '○ WS Disconnected'}
+          </div>
+        </div>
+
+        {/* Переключатель активного пользователя и роли для проверки CASL */}
+        <div className="flex items-center gap-2 bg-slate-200 border border-slate-800 px-3 py-2 rounded-xl">
+          <span className="text-xs text-slate-700">Профиль (CASL):</span>
+          <select
+            value={`${currentUserId}:${currentUserRole}`}
+            onChange={(e) => {
+              const [uid, role] = e.target.value.split(':');
+              setCurrentUserId(uid);
+              setCurrentUserRole(role as 'user' | 'admin');
+              setCaslFeedback(null);
+            }}
+            className="text-xs text-emerald-700 font-mono px-2.5 py-1.5 rounded-lg border border-slate-700 focus:outline-none"
+          >
+            <option value="user-1:user">user-1 (role: user)</option>
+            <option value="user-2:user">user-2 (role: user)</option>
+            <option value="super-admin:admin">super-admin (role: admin)</option>
+          </select>
+        </div>
       </div>
+
+      {/* Уведомление от CASL Guard */}
+      {caslFeedback && (
+        <div
+          className={`p-3 rounded-lg border text-xs font-medium ${
+            caslFeedback.type === 'error'
+              ? 'bg-rose-950/60 border-rose-800 text-rose-300'
+              : 'bg-emerald-950/60 border-emerald-800 text-emerald-300'
+          }`}
+        >
+          {caslFeedback.message}
+        </div>
+      )}
 
       <form onSubmit={handleCreate} className="flex gap-2">
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="New task..."
+          placeholder={`Новая задача от имени ${currentUserId}...`}
           className="flex-1 border border-slate-700 rounded-lg px-3 py-2 text-sm"
         />
         <button type="submit" className="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg text-sm">
@@ -144,29 +227,40 @@ export default function TasksPage() {
         <ul className="divide-y divide-slate-800">
           {tasksList.map((task) => {
             const isCompleted = task.status === 'COMPLETED';
+            const isDeleted = Boolean(task.isDeleted);
             return (
               <li
                 key={task.id}
-                className="p-4 flex items-center justify-between gap-4 hover:bg-slate-800/30 transition"
+                className={`p-4 flex items-center justify-between gap-4 transition ${
+                  isDeleted ? 'bg-rose-950/10 opacity-60' : 'hover:bg-slate-800/30'
+                }`}
               >
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span
                       className={`text-sm font-medium ${
-                        isCompleted ? 'line-through text-slate-500' : 'text-slate-400'
+                        isCompleted || isDeleted ? 'line-through text-slate-500' : 'text-slate-400'
                       }`}
                     >
                       {task.title}
                     </span>
                     <span
                       className={`text-[10px] px-2 py-0.5 rounded font-bold ${
-                        isCompleted
-                          ? 'bg-emerald-950 text-emerald-400'
-                          : 'bg-amber-950 text-amber-400'
+                        isDeleted
+                          ? 'bg-rose-950 text-rose-400'
+                          : isCompleted
+                            ? 'bg-emerald-950 text-emerald-400'
+                            : 'bg-amber-950 text-amber-400'
                       }`}
                     >
-                      {task.status || 'OPEN'}
+                      {isDeleted ? 'DELETED' : task.status || 'OPEN'}
                     </span>
+
+                    {Boolean(task.authorId) && (
+                      <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-slate-800 text-slate-300 border border-slate-700">
+                        author: {String(task.authorId)}
+                      </span>
+                    )}
                   </div>
                   <div className="text-[11px] font-mono text-slate-500">{task.id}</div>
                 </div>
@@ -178,12 +272,20 @@ export default function TasksPage() {
                   >
                     Replay
                   </button>
-                  {!isCompleted && (
+                  {!isCompleted && !isDeleted && (
                     <button
                       onClick={() => handleComplete(task.id)}
                       className="bg-amber-600 hover:bg-amber-500 px-3 py-1.5 rounded-lg text-xs font-medium transition"
                     >
                       Завершить
+                    </button>
+                  )}
+                  {!isDeleted && (
+                    <button
+                      onClick={() => handleDelete(task.id)}
+                      className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition"
+                    >
+                      Удалить
                     </button>
                   )}
                 </div>

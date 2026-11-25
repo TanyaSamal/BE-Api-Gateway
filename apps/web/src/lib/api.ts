@@ -1,4 +1,5 @@
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+export const ANALYTICS_INTERNAL_URL = 'http://localhost:3002';
 
 export interface ApiResponse<T> {
   data: T;
@@ -18,7 +19,7 @@ export async function apiRequest<T>(
     headers: {
       'Content-Type': 'application/json',
       'x-correlation-id': correlationId,
-      ...options.headers,
+      ...(options?.headers || {}),
     },
   });
 
