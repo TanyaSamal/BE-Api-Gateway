@@ -20,7 +20,11 @@ import { DeleteTaskGuard } from '../casl/delete-task.guard';
 import { DeleteTaskCommand } from '../application/commands/delete-task.command';
 import { TaskBreakdownService } from '../ai/task-breakdown.service';
 import { TaskCreatedWsPayload, TasksGateway } from './tasks.gateway';
+import { ApiSecurity, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Tasks (CQRS & Event Sourcing)')
+@ApiSecurity('x-user-id')
+@ApiSecurity('x-user-role')
 @SkipThrottle()
 @Controller('tasks')
 export class TaskController {

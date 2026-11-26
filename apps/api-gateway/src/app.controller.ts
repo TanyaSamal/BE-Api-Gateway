@@ -21,7 +21,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { WorkerPoolService } from './worker-pool/worker-pool.service';
 import { MetricsService } from '@ai/shared/services/metrics.service';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Analytics & Resilience')
 @Controller('analytics')
 export class AppController {
   constructor(

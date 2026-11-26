@@ -8,7 +8,9 @@ import {
 } from '@nestjs/common';
 import { TwoFactorAuthService } from './two-factor-auth.service';
 import { UsersService } from '../users/users.service';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Auth & 2FA')
 @Controller('auth/2fa')
 export class TwoFactorAuthController {
   constructor(
