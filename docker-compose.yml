@@ -77,6 +77,9 @@ services:
       ANALYTICS_SERVICE_URL: http://analytics-service:3002
       OTEL_SERVICE_NAME: api-gateway
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318/v1/traces
+      AI_PROVIDER_BASE_URL=${AI_PROVIDER_BASE_URL}
+      AI_PROVIDER_API_KEY=${AI_PROVIDER_API_KEY}
+      AI_PROVIDER_MODELL=${AI_PROVIDER_MODEL:-recursive/flint-v1.0:free}
     depends_on:
       redis:
         condition: service_healthy

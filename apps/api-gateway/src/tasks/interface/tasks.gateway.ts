@@ -14,6 +14,15 @@ export interface TaskCompletedWsPayload {
   correlationId?: string;
 }
 
+export interface TaskCreatedWsPayload {
+  id: string;
+  title: string;
+  description: string;
+  estimatedMinutes: number;
+  authorId: string;
+  status: string;
+}
+
 @WebSocketGateway({
   cors: {
     origin: 'http://localhost:3000',
@@ -59,5 +68,14 @@ export class TasksGateway
     }
     this.logger.log(`Broadcasting task.deleted for task ${taskId}`);
     this.server.emit('task.deleted', taskId);
+  }
+
+  notifyTasksCreated(tasks: TaskCreatedWsPayload[]) {
+    if (!this.server) {
+      this.logger.warn('WebSocket server не инициализирован, пропуск отправки');
+      return;
+    }
+    this.logger.log(`Broadcasting tasks.created (${tasks.length} items)`);
+    this.server.emit('tasks.created', tasks);
   }
 }

@@ -7,12 +7,13 @@ import { GetTaskHandler } from './application/queries/get-task.handler';
 import { OutboxProcessor } from './infrastructure/cron/outbox.processor';
 import { TransactionalStore } from './infrastructure/persistence/transactional-store';
 import { DatabaseModule } from './infrastructure/persistence/database.module';
-import { SharedModule } from 'ai/shared';
+import { SharedModule } from '@ai/shared';
 import { GetTasksHandler } from './application/queries/get-tasks.handler';
 import { TasksGateway } from './interface/tasks.gateway';
 import { DeleteTaskHandler } from './application/commands/delete-task.handler';
 import { CaslAbilityFactory } from './casl/casl-ability.factory';
 import { DeleteTaskGuard } from './casl/delete-task.guard';
+import { TaskBreakdownService } from './ai/task-breakdown.service';
 
 const CommandHandlers = [
   CreateTaskHandler,
@@ -29,6 +30,7 @@ const QueryHandlers = [GetTaskHandler, GetTasksHandler];
     ...QueryHandlers,
     OutboxProcessor,
     TasksGateway,
+    TaskBreakdownService,
     // Регистрируем Event Store через текстовый токен инверсии зависимостей
     {
       provide: 'EVENT_STORE',

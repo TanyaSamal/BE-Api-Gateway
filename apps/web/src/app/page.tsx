@@ -12,7 +12,12 @@ interface TaskCompletedWsPayload {
   correlationId?: string;
 }
 
-interface TaskItem extends Omit<ITaskResponse, 'authorId' | 'isDeleted'> { authorId?: string; isDeleted?: boolean; }
+type TaskItem = ITaskResponse & {
+  authorId?: string;
+  isDeleted?: boolean;
+  description?: string;
+  estimatedMinutes?: number;
+};
 
 export default function TasksPage() {
   const { sendRequest } = useTrace();
@@ -29,6 +34,11 @@ export default function TasksPage() {
     type: 'success' | 'error';
     message: string;
   } | null>(null);
+
+  // Состояния для тестирования AI запроса по разбиению задачи
+  const [goal, setGoal] = useState('');
+  const [isBreakingDown, setIsBreakingDown] = useState(false);
+
 
   // Подключение к WebSocket Gateway и подписка на TaskCompletedEvent
   useEffect(() => {
@@ -55,6 +65,14 @@ export default function TasksPage() {
           ? { ...prev, status: 'COMPLETED', completedAt: payload.completedAt }
           : prev,
       );
+    });
+
+    socket.on('tasks.created', (newTasks: TaskItem[]) => {
+      setTasksList((prev) => {
+        const existingIds = new Set(prev.map((t) => t.id));
+        const uniqueNew = newTasks.filter((t) => !existingIds.has(t.id));
+        return [...uniqueNew, ...prev];
+      });
     });
 
     return () => {
@@ -97,7 +115,6 @@ export default function TasksPage() {
       if (resolvedId) setTaskId(resolvedId);
     }
   };
-
 
   // Восстановление состояния агрегата (Task.replay)
   const handleReplay = async (taskId: string | number) => {
@@ -150,6 +167,50 @@ export default function TasksPage() {
           res?.message ||
           `403 Forbidden: ${currentUserId} (${currentUserRole}) не может удалить эту задачу`,
       });
+    }
+  };
+
+  // Умная декомпозиция цели через OpenRouter (Vercel AI SDK + Zod)
+  const handleAiBreakdown = async (e: React.SubmitEvent) => {
+    e.preventDefault();
+    if (!goal.trim() || isBreakingDown) return;
+
+    setIsBreakingDown(true);
+    setCaslFeedback(null);
+
+    try {
+      const res = await sendRequest<{
+        success: boolean;
+        count: number;
+        tasks: TaskItem[];
+      }>(
+        'POST',
+        '/tasks/ai-breakdown',
+        { goal },
+        { 'x-user-id': currentUserId },
+      );
+
+      if (res && res.success) {
+        setGoal('');
+        setCaslFeedback({
+          type: 'success',
+          message: `✨ AI разбил цель на ${res.count} подзадач от имени ${currentUserId} (доставлено по WebSocket)`,
+        });
+
+        // Страховка на случай, если WS-событие пришло чуть позже или было пропущено
+        setTasksList((prev) => {
+          const existingIds = new Set(prev.map((t) => String(t.id)));
+          const uniqueNew = res.tasks.filter((t) => !existingIds.has(String(t.id)));
+          return [...uniqueNew, ...prev];
+        });
+      } else {
+        setCaslFeedback({
+          type: 'error',
+          message: 'Не удалось выполнить AI-декомпозицию (проверьте OPENROUTER_API_KEY или логи /tracing)',
+        });
+      }
+    } finally {
+      setIsBreakingDown(false);
     }
   };
 
@@ -217,6 +278,39 @@ export default function TasksPage() {
         </button>
       </form>
 
+      {/* Форма AI-декомпозиции большой цели (OpenRouter + Vercel AI SDK + Zod) */}
+      <form
+        onSubmit={handleAiBreakdown}
+        className="p-4 rounded-xl border border-indigo-800/50 bg-indigo-150/10 space-y-2.5"
+      >
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-semibold text-indigo-600">
+            ✨ Умная AI-декомпозиция цели (OpenRouter + Zod + CQRS + WS)
+          </label>
+          <span className="text-[11px] font-mono text-slate-600">
+            POST /tasks/ai-breakdown
+          </span>
+        </div>
+
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={goal}
+            disabled={isBreakingDown}
+            onChange={(e) => setGoal(e.target.value)}
+            placeholder="Опишите большую цель (например: Запустить MVP доставки кофе за 2 недели)..."
+            className="flex-1 border border-slate-700 rounded-lg px-3 py-2 text-sm bg-transparent disabled:opacity-50"
+          />
+          <button
+            type="submit"
+            disabled={isBreakingDown || !goal.trim()}
+            className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap"
+          >
+            {isBreakingDown ? '⏳ AI думает...' : 'Разбить на задачи'}
+          </button>
+        </div>
+      </form>
+
       {/* Список задач с реактивным обновлением по WebSocket */}
       <div className="border border-slate-800 rounded-xl overflow-hidden">
         <div className="px-4 py-2.5 bg-slate-800/50 text-xs font-medium text-slate-900 flex justify-between">
@@ -232,7 +326,7 @@ export default function TasksPage() {
               <li
                 key={task.id}
                 className={`p-4 flex items-center justify-between gap-4 transition ${
-                  isDeleted ? 'bg-rose-950/10 opacity-60' : 'hover:bg-slate-800/30'
+                  isDeleted ? 'bg-rose-950/10 opacity-60' : 'hover:bg-slate-200/30'
                 }`}
               >
                 <div className="space-y-1">
@@ -244,6 +338,9 @@ export default function TasksPage() {
                     >
                       {task.title}
                     </span>
+                    {Boolean(task.description) && (
+                      <p className="text-xs text-slate-400">{String(task.description)}</p>
+                    )}
                     <span
                       className={`text-[10px] px-2 py-0.5 rounded font-bold ${
                         isDeleted

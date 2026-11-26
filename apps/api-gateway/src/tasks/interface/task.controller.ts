@@ -8,6 +8,7 @@ import {
   Headers,
   Delete,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { Task } from '../domain/models/task.model';
@@ -17,6 +18,8 @@ import { CompleteTaskCommand } from '../application/commands/complete-task.comma
 import { SkipThrottle } from '@nestjs/throttler';
 import { DeleteTaskGuard } from '../casl/delete-task.guard';
 import { DeleteTaskCommand } from '../application/commands/delete-task.command';
+import { TaskBreakdownService } from '../ai/task-breakdown.service';
+import { TaskCreatedWsPayload, TasksGateway } from './tasks.gateway';
 
 @SkipThrottle()
 @Controller('tasks')
@@ -25,6 +28,8 @@ export class TaskController {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
+    private readonly taskBreakdownService: TaskBreakdownService,
+    private readonly tasksGateway: TasksGateway,
   ) {}
 
   // 1. Создание задачи (добавляет TaskCreatedEvent)
@@ -74,5 +79,48 @@ export class TaskController {
       new DeleteTaskCommand(id, userId),
     );
     return { success: true, deletedTaskId: id };
+  }
+
+  @Post('ai-breakdown')
+  async aiBreakdown(
+    @Body('goal') goal: string,
+    @Headers('x-user-id') userId = 'user-1',
+  ) {
+    if (!goal || !goal.trim()) {
+      throw new BadRequestException('Поле goal не может быть пустым');
+    }
+
+    // 1. Получаем структурированный массив подзадач от OpenRouter (валидированный через Zod)
+    const subtasks = await this.taskBreakdownService.generateSubtasks(goal);
+
+    const createdTasks: TaskCreatedWsPayload[] = [];
+
+    // 2. Сохраняем каждую подзадачу через существующую CQRS-команду
+    for (const item of subtasks) {
+      const formattedDescription = `${item.description} (Оценка: ~${item.estimatedMinutes} мин.)`;
+
+      const taskId = await this.commandBus.execute<CreateTaskCommand, string>(
+        new CreateTaskCommand(item.title, formattedDescription, userId),
+      );
+
+      createdTasks.push({
+        id: taskId,
+        title: item.title,
+        description: formattedDescription,
+        estimatedMinutes: item.estimatedMinutes,
+        authorId: userId,
+        status: 'OPEN',
+      });
+    }
+
+    // 3. Отправляем пачку созданных задач по WebSocket на фронтенд
+    this.tasksGateway.notifyTasksCreated(createdTasks);
+
+    return {
+      success: true,
+      goal,
+      count: createdTasks.length,
+      tasks: createdTasks,
+    };
   }
 }
