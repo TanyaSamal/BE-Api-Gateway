@@ -1,4 +1,8 @@
-process.loadEnvFile?.();
+try {
+  process.loadEnvFile?.();
+} catch {
+  // Для Docker
+}
 
 import { NestFactory } from '@nestjs/core';
 
