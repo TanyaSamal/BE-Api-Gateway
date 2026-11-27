@@ -1,10 +1,10 @@
 # SPEC.md — Fullstack Enterprise Architecture
 
-> **Версия:** 2.0.0
+> **Версия:** 2.1.0
 > **Статус:** `FINAL — PENDING ARCHITECTURAL APPROVAL`
-> **Дата:** 2026-11-18
-> **Заменяет:** v1.0.0 (аудит CQRS/ES/Outbox/Streams/Workers — выводы сохранены в разделе 9)
-> **Область:** монорепозиторий `api-gateway` (NestJS 11 ×2 + Next.js 16 + RabbitMQ + Redis + Prometheus + Grafana)
+> **Дата:** 2026-11-26
+> **Заменяет:** v2.0.0 (добавлен раздел 12 — анализ производительности k6 + Jaeger и реестр узких мест)
+> **Область:** монорепозиторий `api-gateway` (NestJS 11 ×2 + Next.js 16 + RabbitMQ + Redis + Prometheus + Grafana + Jaeger)
 
 ---
 
@@ -416,6 +416,100 @@ scrape_configs:
 
 ---
 
+## 12. Анализ производительности и узкие места (k6 + Jaeger)
+
+> Добавлено в v2.1.0 по результатам реального прогона нагрузочного теста и трассировки.
+> **Метод:** `grafana/k6` (образ `grafana/k6:latest`) в сети `api-gateway_default`, скрипт `load-tests/tasks-load.js`;
+> сбор метрик — Jaeger all-in-one (OTLP/HTTP, UI `http://localhost:16686`).
+> **Среда:** Docker Desktop, 8 ГБ RAM, 16 vCPU; стек: `api-gateway`, `analytics-service`, `web` (Next.js), `rabbitmq`, `redis`, `prometheus`, `grafana`, `jaeger`.
+
+### 12.1. Профиль нагрузки (k6)
+
+| Параметр | Значение |
+| --- | --- |
+| Сценарий | 3 стадии: 10с→30 VU, 30с→100 VU, 10с→0 VU (итого 50с) |
+| Пороги | `http_req_duration p(95)<500мс`; `http_req_failed{expected:true}<1%` |
+| Итерации | 2681 (53.1/с), 0 прервано |
+| HTTP-запросы | 8584 (170.1/с) |
+| `http_req_duration` | avg 23.45мс · med 3.73мс · p90 32.4мс · **p95 68.28мс** · max 3.02с |
+| `iteration_duration` | avg 981мс · p95 1.16с · max 4.17с |
+| Проверки (`checks`) | 8584, успех 100% (проверка аналитики допускает 200/429) |
+| Ошибки `http_req_failed` | **6.18% (531)** — все это HTTP 429 |
+| `rate_limited_429` | 531 (10.5/с) |
+| Получено данных | 4.5 МБ |
+
+**Вывод по порогам:** `p95=68мс < 500мс` — ✅ пройден; `expected:true` отказов ≈ 0 — ✅ пройден (429 помечены `expected:false`).
+Формально k6 «зелёный», но **6.18% запросов отброшено rate-limiter-ом** (см. B-1) — это скрытый дефект, а не успех.
+
+### 12.2. Трассировка (Jaeger)
+
+Сервисы в Jaeger: `api-gateway`, `analytics-service`. Проанализировано 300 трейсов gateway и 100 — аналитики.
+
+| Операция (api-gateway) | Кол-во | avg, мс | max, мс |
+| --- | --- | --- | --- |
+| GET /tasks/:id | 29 | 2.54 | 5.36 |
+| PATCH /tasks/:id/complete | 38 | 1.57 | 5.02 |
+| POST /tasks | 24 | 1.37 | 2.17 |
+| GET /analytics/dashboard | 5 | 1.22 | 1.50 |
+| Outbox.Save:TaskCompletedEvent | 38 | 0.30 | 4.02 |
+| Outbox.Save:TaskCreatedEvent | 24 | 0.12 | 0.75 |
+
+- **Все прикладные спаны — sub-5мс.** Вычислений в запросе практически нет; латентность определяется не CPU, а вспомогательными путями (429, холодный старт, синхронное логирование).
+- **`GET /analytics/dashboard` ≈ 1мс и без RMQ-спана** — ответ отдаётся из Redis-кэша (`RedisCacheInterceptor`), кросс-сервисный вызов не выполняется. Кэш работает корректно.
+- **`analytics-service` — всего 3 трейса (`tcp.connect`, avg 7.56 / max 11.25мс).** RMQ-consumer почти не задействован (dashboard закэширован, `/analytics/track` в k6 не вызывается); серверные спаны консьюмера в Jaeger почти не попадают.
+- **Хвост `max=3.02с` в k6 отсутствует в steady-state трейсах** → эффект холодного старта (инициализация OTel SDK, первое подключение Redis/RMQ, JIT) на первой итерации, а не устойчивое узкое место.
+- В логах gateway — редкие `[WARN] Slow Request: POST /tasks - 203мс` (конкуренция за event loop / GC / синхронный `console.log`).
+
+### 12.3. Реестр узких мест (bottlenecks)
+
+Серьёзность: 🔴 критично · 🟠 важно · 🟡 гигиена.
+
+| ID | Узкое место | Доказательство | Sev |
+| --- | --- | --- | --- |
+| B-1 | **Rate-limiter по IP**: глобальный `ThrottlerGuard` 10 запр./60с на IP; k6 с одного IP → 6.18% 429 | 531 × 429 в k6 | 🔴 |
+| B-2 | **In-memory Event Store растёт неограниченно** (массивы `eventLog`/`outboxTable`), `getAllTasks()`/`getEventsByTaskId()` — O(n), без TTL/пагинации → OOM | контейнеры `api-gateway`/`analytics` падали с кодом 137 (SIGKILL/OOM) | 🔴 |
+| B-3 | **Outbox `@Interval(500)`**: полный O(n)-скан `outboxTable` каждые 500мс, без лимита пачки, `markAsProcessed` без ACK брокера, без retry/backoff/DLQ | `outbox.processor.ts` | 🟠 |
+| B-4 | **Холодный старт / p99-хвост**: первый запрос до 3с (OTel init, connect, JIT) | k6 max 3.02с; `tcp.connect` до 11мс | 🟠 |
+| B-5 | **Синхронный `console.log` на горячем пути** (2–3 строки на событие, лог кэша на каждый запрос) | `[WARN] Slow Request`; насыщение stdout | 🟠 |
+| B-6 | **`new Worker()` на каждый `/heavy-report`** без пула/terminate/reuse | `worker-pool.service.ts` | 🟠 |
+| B-7 | **Один инстанс, single-threaded event loop**; нет горизонтального масштабирования | 170 req/s на 1 процессе (CPU 0.65% — запас есть) | 🟡 |
+| B-8 | **Build context 294 МБ** (`COPY . .` тянет `node_modules`/`.next`) → медленные CI-сборки | лог сборки: transferring context 294 МБ | 🟡 |
+| B-9 | **Риск кардинальности метрик**: `route.path \|\| request.url` (query в url) | `performance.interceptor.ts` | 🟡 |
+| B-10 | **`analytics-service/main.ts` вызывает `initTracing('api-gateway')`** — неверное имя сервиса (в docker перекрывается `OTEL_SERVICE_NAME`) | `main.ts` | 🟡 |
+
+**Главный вывод:** вычислительных узких мест нет (всё sub-5мс). Узкие места — **инфраструктурные и архитектурные**: rate-limiter (B-1), неограниченная память in-memory хранилища (B-2) и вспомогательные пути (outbox, логирование, холодный старт).
+
+### 12.4. Рекомендации (для роли Developer)
+
+| ID | Изменение | Закрывает |
+| --- | --- | --- |
+| P-1 | Throttler: ключ по `x-user-id` (не IP), лимит/ttl из env, отдельный throttler для `/analytics/*` | B-1 |
+| P-2 | Перейти на PostgreSQL + Prisma (раздел 9): `task_events`/`outbox_events`, индексы `(task_id)`, `(status, created_at)`; пагинация в `GetTasksQuery`; read-model вместо полного replay | B-2 |
+| P-3 | Outbox: интервал из env, батч + `SELECT ... FOR UPDATE SKIP LOCKED`, ACK после подтверждения брокера, retry с backoff, DLQ | B-3 |
+| P-4 | Readiness-gate + warm-up (прогрев соединений), OTel `BatchSpanProcessor`, исключить `/health` из тяжёлой инициализации | B-4 |
+| P-5 | Структурированный асинхронный логгер, уровни (info→warn в prod), сэмплирование логов кэша | B-5 |
+| P-6 | Worker Pool (min/max, timeout, terminate) — как в разделе 9 | B-6 |
+| P-7 | Горизонтальное масштабирование: stateless-инстансы + реплики, cluster/несколько контейнеров; WS через Redis adapter (уже есть) | B-7 |
+| P-8 | `.dockerignore`: `node_modules`, `.next`, `dist`, `coverage` | B-8 |
+| P-9 | Метрики: только `route.path` (без query), нормализация label | B-9 |
+| P-10 | `initTracing` с корректным именем сервиса | B-10 |
+
+### 12.5. Критерии приёмки по производительности (дополнение к разделу 10)
+
+12. `k6` при 100 VU: `p95 < 500мс` и `http_req_failed{expected:true} < 1%` — оба порога зелёные.
+13. Доля HTTP 429 ≤ 1% (сейчас 6.18% — до устранения B-1 не выполняется).
+14. 10-минутный прого́н без `restart`/OOM (exit 137) у `api-gateway` и `analytics-service`.
+15. После warm-up p99 steady-state < 300мс (устранён холодный хвост 3с).
+16. В Jaeger присутствуют серверные спаны `analytics-service` (RMQ consumer), прослеживается цепочка gateway→RMQ→analytics.
+
+### 12.6. Открытые вопросы (производительность)
+
+6. Целевой SLA: какой процент 429 допустим и на каком ключе (IP vs user)?
+7. Переход на PostgreSQL + Prisma (B-2/P-2) — в этом же релизе?
+8. Целевой профиль нагрузки (пиковые RPS, длительность) для финальной приёмки.
+
+---
+
 **Статус:** `FINAL — PENDING ARCHITECTURAL APPROVAL`.
-**Следующий шаг:** формальное утверждение; затем разделы 6–7 → роль Developer, раздел 10 → роль Tester.
+**Следующий шаг:** формальное утверждение; затем разделы 6–7 и 12.4 → роль Developer, раздел 10 и 12.5 → роль Tester.
 
